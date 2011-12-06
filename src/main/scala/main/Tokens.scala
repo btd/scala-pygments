@@ -4,6 +4,10 @@ package main
 trait Token {
     override def toString = this.getClass.getSimpleName
 
+    override def equals(that: Any) = that match { 
+       case other: Token => other.toString == toString && other.toString == toString 
+       case _ => false 
+     }
 }
 
 object Token extends Token

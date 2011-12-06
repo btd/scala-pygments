@@ -5,6 +5,132 @@ import java.util.regex.Pattern
 import Helpers._
 
 /*
+ For C source code with preprocessor directives.
+*/
+class CLexer(val options: LexerOptions, stdlibhighlighting: Boolean = true, c99highlighting: Boolean = true) extends RegexLexer {
+
+    override val name = "C"
+    override val aliases = "c" :: Nil
+    override val filenames = "*.c" :: "*.h" :: "*.idc" :: Nil
+    override val mimetypes = "text/x-chdr" :: "text/x-csrc" :: Nil
+
+    //: optional Comment or Whitespace
+    val _ws = """(?:\s|//.*?\n|/[*].*?[*]/)+"""
+
+    val tokens = Map[String, StateDef](
+        ("whitespace", List[Definition](
+            // preprocessor directives: without whitespace
+            ("""^#if\s+0""",  Comment.Preproc) >> "if0",
+            ("""^#""",  Comment.Preproc) >> "macro",
+            // or with whitespace
+            ("""^' + _ws + r'#if\s+0""",  Comment.Preproc) >> "if0",
+            ("""^' + _ws + '#""",  Comment.Preproc) >> "macro",
+            ("""^(\s*)([a-zA-Z_][a-zA-Z0-9_]*:(?!:))""",  ByGroups(Text, Name.Label)),
+            ("""\n""",  Text),
+            ("""\s+""",  Text),
+            ("""\\\n""",  Text), // line continuation
+            ("""//(\n|(.|\n)*?[^\\]\n)""",  Comment.Single),
+            ("""/(\\\n)?[*](.|\n)*?[*](\\\n)?/""",  Comment.Multiline)
+        )),
+        ("statements", List[Definition](
+            ("""L?"""", Str) >> "string",
+            ("L?'(\\.|\\[0-7]{1,3}|\\\\x[a-fA-F0-9]{1,2}|[^\\\'\n])'", Str.Char),
+            ("""(\d+\.\d*|\.\d+|\d+)[eE][+-]?\d+[LlUu]*""", Number.Float),
+            ("""(\d+\.\d*|\.\d+|\d+[fF])[fF]?""", Number.Float),
+            ("""0x[0-9a-fA-F]+[LlUu]*""", Number.Hex),
+            ("""0[0-7]+[LlUu]*""", Number.Oct),
+            ("""\d+[LlUu]*""", Number.Integer),
+            ("""\*/""", Error),
+            ("""[~!%^&*+=|?:<>/-]""", Operator),
+            ("""[()\[\],.]""", Punctuation),
+            ("""\b(case)(.+?)(:)""", ByGroups(Keyword, Using(this), Text)),
+            ("""(auto|break|case|const|continue|default|do|else|enum|extern|""" +
+             """for|goto|if|register|restricted|return|sizeof|static|struct|""" +
+             """switch|typedef|union|volatile|virtual|while)\b""", Keyword),
+            ("""(int|long|float|short|double|char|unsigned|signed|void)\b""",
+             Keyword.Type),
+            ("""(_{0,2}inline|naked|restrict|thread|typename)\b""", Keyword.Reserved),
+            ("""__(asm|int8|based|except|int16|stdcall|cdecl|fastcall|int32|""" +
+             """declspec|finally|int64|try|leave)\b""", Keyword.Reserved),
+            ("""(true|false|NULL)\b""", Name.Builtin),
+            ("""[a-zA-Z_][a-zA-Z0-9_]*""", Name)
+        )),
+        ("root", List[Definition](
+            Include("whitespace"),
+            // functions
+            ("""((?:[a-zA-Z0-9_*\s])+?(?:\s|[*]))""" +   // return arguments
+             """([a-zA-Z_][a-zA-Z0-9_]*)""" +             // method name
+             """(\s*\([^;]*?\))""" +                      // signature
+             """(' + _ws + r')(\{)""",
+             ByGroups(Using(this), Name.Function, Using(this), Using(this), Punctuation)) >>
+             "function",
+            // function declarations
+            ("""((?:[a-zA-Z0-9_*\s])+?(?:\s|[*]))""" +   // return arguments
+             """([a-zA-Z_][a-zA-Z0-9_]*)""" +   // method name
+             """(\s*\([^;]*?\))""" +   // signature
+             """(' + _ws + r')(;)""",
+             ByGroups(Using(this), Name.Function, Using(this), Using(this), Punctuation)),
+            ("""""", Text) >> "statement"
+        )),
+        ("statement", List[Definition](
+            Include("whitespace"),
+            Include("statements"),
+            ("""[{}]""", Punctuation),
+            (""";""", Punctuation) >> Pop
+        )),
+        ("function", List[Definition](
+            Include("whitespace"),
+            Include("statements"),
+            (";", Punctuation),
+            ("{", Punctuation) >> Push,
+            ("}", Punctuation) >> Pop
+        )),
+        ("string", List[Definition](
+            (""""""", Str) >> Pop,
+            ("""\\([\\abfnrtv"\']|x[a-fA-F0-9]{2,4}|[0-7]{1,3})""", Str.Escape),
+            ("""[^\\"\n]+""", Str), // all other characters
+            ("""\\\n""", Str), // line continuation
+            ("""\\""", Str) // stray backslash
+        )),
+        ("macro", List[Definition](
+            ("""[^/\n]+""", Comment.Preproc),
+            ("""/[*](.|\n)*?[*]/""", Comment.Multiline),
+            ("""//.*?\n""", Comment.Single) >> Pop,
+            ("""/""", Comment.Preproc),
+            ("""(?<=\\)\n""", Comment.Preproc),
+            ("""\n""", Comment.Preproc) >> Pop
+        )),
+        ("if0", List[Definition](
+            ("""^\s*#if.*?(?<!\\)\n""", Comment.Preproc) >> Push,
+            ("""^\s*#el(?:se|if).*\n""", Comment.Preproc) >> Pop,
+            ("""^\s*#endif.*?(?<!\\)\n""", Comment.Preproc) >> Pop,
+            (""".*?\n""", Comment)
+        ))
+    )
+
+    val stdlibTypes = "size_t" :: "ssize_t" :: "off_t" :: "wchar_t" :: "ptrdiff_t" ::
+            "sig_atomic_t" :: "fpos_t" :: "clock_t" :: "time_t" :: "va_list" ::
+            "jmp_buf" :: "FILE" :: "DIR" :: "div_t" :: "ldiv_t" :: "mbstate_t" ::
+            "wctrans_t" :: "wint_t" :: "wctype_t" :: Nil
+    val c99Types = "_Bool" :: "_Complex" :: "int8_t" :: "int16_t" :: "int32_t" :: "int64_t" ::
+            "uint8_t" :: "uint16_t" :: "uint32_t" :: "uint64_t" :: "int_least8_t" ::
+            "int_least16_t" :: "int_least32_t" :: "int_least64_t" ::
+            "uint_least8_t" :: "uint_least16_t" :: "uint_least32_t" ::
+            "uint_least64_t" :: "int_fast8_t" :: "int_fast16_t" :: "int_fast32_t" ::
+            "int_fast64_t" :: "uint_fast8_t" :: "uint_fast16_t" :: "uint_fast32_t" ::
+            "uint_fast64_t" :: "intptr_t" :: "uintptr_t" :: "intmax_t" :: "uintmax_t" :: Nil
+
+    override def getTokensUnprocessed(text: String) = {
+        super.getTokensUnprocessed(text).map{
+            case (i, Name, value) if (stdlibhighlighting &&  stdlibTypes.contains(value)) => (i, Keyword.Type, value)
+            case (i, Name, value) if (c99highlighting &&  c99Types.contains(value)) => (i, Keyword.Type, value)
+            case t => t
+        }
+    }
+}
+        
+
+/*
 For `Scala <http://www.scala-lang.org>`_ source code.
 */
 class ScalaLexer(val options: LexerOptions) extends RegexLexer {

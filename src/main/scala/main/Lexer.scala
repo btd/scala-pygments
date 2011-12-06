@@ -1,6 +1,6 @@
 package main
 
-import java.util.regex.{ Pattern, Matcher }
+import java.util.regex.{ Pattern, Matcher, MatchResult }
 
 
 class LexerOptions(val stripnl: Boolean = true,
@@ -69,7 +69,7 @@ trait TextAnalyser {
 
 abstract sealed class StateDef 
 
-case class Include(state: String) extends StateDef
+
 
 case class TokenDefs(list: List[Definition]) extends StateDef 
 
@@ -79,15 +79,20 @@ trait StateDefHelpers {
 
 abstract sealed class Desc
 
-case class IsToken(t: Token) extends Desc
-case class ByGroups(tt: Token*) extends Desc 
+trait SimpleTerm {}
+
+case class IsToken(t: Token) extends Desc with SimpleTerm {}
+case class Using(lexer: Lexer) extends Desc with SimpleTerm {}
+case class ByGroups(tt: SimpleTerm*) extends Desc 
 
 trait DescHelpers {
     implicit def TokenToIsToken(t: Token):Desc = IsToken(t)
+    implicit def TokenToSimpleTerm(t: Token):SimpleTerm = IsToken(t)
 }
 
 abstract sealed class Definition
 
+case class Include(state: String) extends Definition
 case class WithAction(state: (String, Desc, Action)) extends Definition
 case class WithoutAction(state: (String, Desc)) extends Definition
 
@@ -120,6 +125,25 @@ object Push extends Action {
 }
 
 object DoNothing extends Action
+
+/*
+A pseudo match object constructed from a string.
+*/
+case class _PseudoMatch(val _start: Int, val _text: String) extends MatchResult {
+    def end(): Int = _start + _text.length
+ 
+    def end(group: Int): Int = _start + _text.length
+
+    def group(): String = _text
+
+    def group(group: Int): String = _text
+
+    def groupCount(): Int = 1
+
+    def start(): Int = _start
+
+    def start(group: Int): Int = _start
+}
 
 
 /*
@@ -156,17 +180,19 @@ trait RegexLexer extends Lexer {
 
          
             unprocessed(state) match {
-                case Include(otherState) => {
-                    //println("Include " + otherState)
-                    processState(unprocessed, processed, otherState)
-                }
+                
                 
                 case TokenDefs(list) => {
                     //println("TokenDefs " + list)
-                    list.map{case WithAction(tdef) => 
-                                (processRegex(tdef._1, flags), tdef._2, processNewState(tdef._3, unprocessed, processed)) 
+                    list.flatMap{
+                            case Include(otherState) => {
+                                //println("Include " + otherState)
+                                processState(unprocessed, processed, otherState)
+                            }
+                            case WithAction(tdef) => 
+                                (processRegex(tdef._1, flags), tdef._2, processNewState(tdef._3, unprocessed, processed)) :: Nil
                             case WithoutAction(tdef) => 
-                                (processRegex(tdef._1, flags), tdef._2, DoNothing)
+                                (processRegex(tdef._1, flags), tdef._2, DoNothing) :: Nil
                             }
                     }
             }
@@ -211,10 +237,24 @@ trait RegexLexer extends Lexer {
                 val (m, token, action) = t
                 token match {
                     case IsToken(tt) => result += ((pos, tt, m.group()))
-                    case ByGroups(tl @ Token*) => tl.zipWithIndex
-                                .map(tt => (m.group(tt._2 + 1), tt._1))
-                                .filter(!_._1.isEmpty)
-                                .foreach(tt => result += ((pos, tt._2, tt._1)))
+                    case ByGroups(tl @ _*) => {
+                        for {(t, i) <- tl.zipWithIndex} {
+                            t match {
+                                case IsToken(token) => {
+                                    val data = m.group(i + 1)
+                                    if(!data.isEmpty) result += ((m.start(i + 1), token, data))
+                                }
+                                case Using(lexer) => {
+                                    def action(lx: Lexer, m: MatchResult) = {
+                                        val s = m.start
+                                        lx.getTokensUnprocessed(m.group).map(t => (t._1 + s, t._2, t._3))                   
+                                    }
+                                    action(lexer, _PseudoMatch(m.start(i + 1), m.group(i + 1)))
+                                }
+                            }
+                        }
+                    }
+                    case _ =>
                 }
                 
    
