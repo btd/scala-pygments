@@ -2,6 +2,8 @@ package main
 
 
 trait Token {
+    val parent: Token = Token
+
     override def toString = this.getClass.getSimpleName
 
     override def equals(that: Any) = that match { 
@@ -13,32 +15,34 @@ trait Token {
 object Token extends Token
 
 // Special token types
-trait Text extends Token
+trait Text extends Token { val parent = Text }
 object Text extends Text {
-    object Symbol extends Text
+    object Symbol extends Text 
 }
 object Whitespace extends Text
 object Error extends Token
 
 // Text that doesn"t belong to this lexer (e.g. HTML in PHP)
-object Other extends Token
+object Other extends Token 
 
 // Common token types for source code
-trait Keyword extends  Token
+trait Keyword extends  Token { val parent = Keyword }
 object Keyword extends  Keyword {
 
-	object Constant extends Keyword
+    override val parent = Token
+
+	object Constant extends Keyword 
 	object Declaration extends Keyword
 	object Namespace extends Keyword
 	object Pseudo extends Keyword
 	object Reserved extends Keyword
 	object Type extends Keyword
 }
-trait Name         extends  Token
-object Name         extends  Token {
+trait Name         extends  Token { val parent = Name }
+object Name         extends  Name {
 	object Attribute extends  Name
 
-	trait Builtin extends  Name
+	trait Builtin extends  Name { val parent = Builtin }
 
     object Builtin extends  Builtin {
     	object Pseudo extends  Builtin
@@ -55,7 +59,7 @@ object Name         extends  Token {
     object Namespace extends  Name
     object Other extends  Name
     object Tag extends  Name
-    trait Variable extends  Name
+    trait Variable extends  Name { val parent = Variable }
     object Variable extends  Variable {
     	object Class  extends  Variable
     	object Global  extends  Variable
