@@ -7,10 +7,10 @@ class DefaultStyle extends Style {
     The default style (inspired by Emacs 22).
     */
 
-    val backgroundColor = "#f8f8f8"
+    override val backgroundColor = "#f8f8f8"
     val defaultStyle = ""
 
-    val styles = collection.mutable.Map[Token, String](
+    var styles = collection.mutable.Map[Token, String](
         Whitespace ->                "#bbbbbb",
         Comment ->                   "italic #408080",
         Comment.Preproc ->           "noitalic #BC7A00",

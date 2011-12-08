@@ -55,4 +55,6 @@ trait Formatter {
         tuples and write it into "outfile".
     */
     def format(tokensource: List[(Token, String)]): List[String]
+
+    def styleDefs: String
 }

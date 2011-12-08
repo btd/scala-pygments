@@ -4,13 +4,11 @@ object Pygments {
 
 	def lex(code: String, lexer: Lexer) = lexer.getTokens(code)
 
-	def format(tokens: List[(Token, String)], formatter: Formatter) = {
+	def format(tokens: List[(Token, String)], formatter: Formatter): List[String] = {
 		try {
 			formatter.format(tokens)
 		} catch {
-			case _ => {
-				
-			}
+			case _ => Nil
 		}
 	}
 	    
@@ -18,5 +16,5 @@ object Pygments {
 
 	def highlight(code: String, 
 				lexer: Lexer, 
-				formatter: Formatter) = format(lex(code, lexer), formatter)
+				formatter: Formatter): List[String] = format(lex(code, lexer), formatter)
 }

@@ -2,7 +2,8 @@ package main
 
 
 trait Token {
-    val parent: Token = Token
+
+    val parent: Token
 
     override def toString = this.getClass.getSimpleName
 
@@ -12,116 +13,142 @@ trait Token {
      }
 }
 
-object Token extends Token
+object Token extends Token { val parent = null }
 
 // Special token types
-trait Text extends Token { val parent = Text }
+trait Text extends Token 
 object Text extends Text {
-    object Symbol extends Text 
+    val parent = Token
+
+    object Symbol extends Text {
+        val parent = Text
+    }
 }
-object Whitespace extends Text
-object Error extends Token
+object Whitespace extends Text {
+    val parent = Text
+}
+object Error extends Token { val parent = Token }
 
 // Text that doesn"t belong to this lexer (e.g. HTML in PHP)
-object Other extends Token 
+object Other extends Token { val parent = Token } 
 
 // Common token types for source code
-trait Keyword extends  Token { val parent = Keyword }
+trait Keyword extends  Token 
 object Keyword extends  Keyword {
+    val parent = Token
+   
 
-    override val parent = Token
-
-	object Constant extends Keyword 
-	object Declaration extends Keyword
-	object Namespace extends Keyword
-	object Pseudo extends Keyword
-	object Reserved extends Keyword
-	object Type extends Keyword
+	object Constant extends Keyword  { val parent = Keyword }
+	object Declaration extends Keyword { val parent = Keyword }
+	object Namespace extends Keyword { val parent = Keyword }
+	object Pseudo extends Keyword { val parent = Keyword }
+	object Reserved extends Keyword { val parent = Keyword }
+	object Type extends Keyword  { val parent = Keyword }
 }
-trait Name         extends  Token { val parent = Name }
+trait Name         extends  Token 
 object Name         extends  Name {
-	object Attribute extends  Name
+    val parent = Token
 
-	trait Builtin extends  Name { val parent = Builtin }
+	object Attribute extends Name  { val parent = Name }
+
+	trait Builtin extends Name
 
     object Builtin extends  Builtin {
-    	object Pseudo extends  Builtin
+        val parent = Name 
+
+    	object Pseudo extends  Builtin { val parent = Builtin } 
     }
     
-    object Class extends  Name
-    object Constant extends  Name
-    object Decorator extends  Name
-    object Entity extends  Name
-    object Exception extends  Name
-    object Function extends  Name
-    object Property extends  Name
-    object Label extends  Name
-    object Namespace extends  Name
-    object Other extends  Name
-    object Tag extends  Name
-    trait Variable extends  Name { val parent = Variable }
+    object Class extends Name  { val parent = Name }
+    object Constant extends Name  { val parent = Name }
+    object Decorator extends Name  { val parent = Name }
+    object Entity extends Name  { val parent = Name }
+    object Exception extends Name  { val parent = Name }
+    object Function extends Name  { val parent = Name }
+    object Property extends Name  { val parent = Name }
+    object Label extends Name  { val parent = Name }
+    object Namespace extends Name  { val parent = Name }
+    object Other extends Name  { val parent = Name }
+    object Tag extends Name  { val parent = Name }
+    trait Variable extends  Name 
     object Variable extends  Variable {
-    	object Class  extends  Variable
-    	object Global  extends  Variable
-    	object Instance  extends  Variable
+        val parent = Name
+
+    	object Class  extends  Variable { val parent = Variable }
+    	object Global  extends  Variable { val parent = Variable }
+    	object Instance  extends  Variable { val parent = Variable }
     }
     
 }
 
 trait  Literal      extends  Token
 object Literal      extends  Literal {
-	object Date  extends  Literal
+    val parent = Token
+
+	object Date  extends  Literal { val parent = Literal }
 }
 trait Str       extends  Literal
 object Str       extends  Str {
-	object Backtick extends  Str
-    object Char extends  Str
-    object Doc extends  Str
-    object Double extends  Str
-    object Escape extends  Str
-    object Heredoc extends  Str
-    object Interpol extends  Str
-    object Other extends  Str
-    object Regex extends  Str
-    object Single extends  Str
-    object Symbol extends  Str
+    val parent = Literal
+
+	object Backtick extends Str  { val parent = Str }
+    object Char extends Str  { val parent = Str }
+    object Doc extends Str  { val parent = Str }
+    object Double extends Str  { val parent = Str }
+    object Escape extends Str  { val parent = Str }
+    object Heredoc extends Str  { val parent = Str }
+    object Interpol extends Str  { val parent = Str }
+    object Other extends Str  { val parent = Str }
+    object Regex extends Str  { val parent = Str }
+    object Single extends Str  { val parent = Str }
+    object Symbol extends Str  { val parent = Str }
 }
 trait Number       extends  Literal
 object Number       extends  Number {
-	object Float extends  Number
-    object Hex extends  Number
-    trait Integer extends  Number
+    val parent = Literal
+
+	object Float extends Number  { val parent = Number }
+    object Hex extends Number  { val parent = Number }
+    trait Integer extends Number 
     object Integer extends  Integer {
-    	object Long extends  Integer
+        val parent = Number
+
+    	object Long extends  Integer { val parent = Integer }
     }    
-    object Oct extends  Number
+    object Oct extends Number  { val parent = Number }
 }
-object Punctuation  extends  Token
-trait Operator     extends  Token
+object Punctuation  extends  Token { val parent = Token }
+trait Operator     extends  Token 
 object Operator     extends  Operator {
-	object Word extends  Operator
+    val parent = Token
+
+	object Word extends  Operator { val parent = Operator }
 }
 trait Comment      extends  Token
 object Comment      extends  Comment {
-	object Multiline extends  Comment
-    object Preproc extends  Comment
-    object Single extends  Comment
-    object Special extends  Comment
+    val parent = Token
+
+	object Multiline extends  Comment { val parent = Comment }
+    object Preproc extends  Comment { val parent = Comment }
+    object Single extends  Comment { val parent = Comment }
+    object Special extends  Comment { val parent = Comment }
 }
 
 // Generic types for non-source code
 trait Generic      extends  Token 
 object Generic      extends  Generic {
-	object Deleted extends  Generic
-    object Emph extends  Generic
-    object Error extends  Generic
-    object Heading extends  Generic
-    object Inserted extends  Generic
-    object Output extends  Generic
-    object Prompt extends  Generic
-    object Strong extends  Generic
-    object Subheading extends  Generic
-    object Traceback extends  Generic
+    val parent = Token
+
+	object Deleted extends  Generic { val parent = Generic }
+    object Emph extends  Generic { val parent = Generic }
+    object Error extends  Generic { val parent = Generic }
+    object Heading extends  Generic { val parent = Generic }
+    object Inserted extends  Generic { val parent = Generic }
+    object Output extends  Generic { val parent = Generic }
+    object Prompt extends  Generic { val parent = Generic }
+    object Strong extends  Generic { val parent = Generic }
+    object Subheading extends  Generic { val parent = Generic }
+    object Traceback extends  Generic { val parent = Generic }
 }
 
 object Tokens {

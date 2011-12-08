@@ -322,13 +322,16 @@ class HtmlFormatter(
         linewise, e.g. line number generators.
         */
         var source = formatLines(tokensource)
+        println(source.size)
         if(!nowrap) {    
             if(lineanchors)
                 source = wrapLineanchors(source)
-
+            println(source.size)
             source = wrap(source)
+            println(source.size)
             if(!lineos)
                 source = wrapTablelinenos(source)
+            println(source.size)
         }
         for{ (t, piece) <- source } yield piece
     }
@@ -342,8 +345,7 @@ class HtmlFormatter(
     private def formatLines(tokensource: List[(Token, String)]) = {
         val nocls = noclasses
         val lsep = lineseparator
-        // for <span style=""> lookup only
-        //val getcls = ttype2class.get
+
         val c2s = class2style
 
         var lspan = ""
@@ -351,6 +353,7 @@ class HtmlFormatter(
 
         var result = new collection.mutable.ListBuffer[(Int, String)]()
         for{ (ttype, value) <- tokensource } {
+            println("Begin process " + ttype + " " + value)
             val cspan = 
                 if(nocls) {
                     val cclass = 
@@ -366,23 +369,24 @@ class HtmlFormatter(
                 } else {
                     "<span class='" + cssClass(ttype) + "'>"
                 }
-                
+            println(cspan)   
             val parts = escape(value).linesWithSeparators.toList
-
+            println("This token is splited on " + parts.size + " parts" )
             val reversed = parts.reverse
             // for all but the last line
             for {part <- reversed.tail.reverse} {
                 if(!line.isEmpty) {
-                    if( lspan != cspan)
+                    println("Line is empty")
+                    line = new StringBuilder(if( lspan != cspan)
                         (lspan and "</span>") + cspan + part + (cspan and "</span>") + lsep
                     else // both are the same
-                        part + (lspan and "</span>") + lsep
-                    result += ((1, line))
+                        part + (lspan and "</span>") + lsep)
+                    result.append((1, line))
                     line.clear
                 } else if(!part.isEmpty) {
-                    result += (( 1, cspan + part + (cspan and "</span>") + lsep))
+                    result.append(( 1, cspan + part + (cspan and "</span>") + lsep))
                 } else 
-                    result += (( 1, lsep))
+                    result.append(( 1, lsep))
             }
             // for the last line
             if(line && reversed.head) {
@@ -393,11 +397,13 @@ class HtmlFormatter(
             } else if(reversed.head) {
                 line = new StringBuilder(cspan + reversed.head)
                 lspan = cspan
-            } // else we neither have to open a new span nor set lspan
-        }        
+            } 
+            println("Line: " + line)
+        }    
+        println("size is " + result.size)    
 
         if (line)                                                    
-            result += (( 1, line + (lspan and "</span>") + lsep))
+            result.append(( 1, line + (lspan and "</span>") + lsep))
 
         result.toList
     }
@@ -449,6 +455,7 @@ class HtmlFormatter(
             lncount += l
             value ++= v
         }
+        println(inner)
 
         val fl = 0
         val mw = (lncount + fl - 1).toString.length
@@ -459,7 +466,7 @@ class HtmlFormatter(
         val lines = new collection.mutable.ListBuffer[String]
 
         val ls =
-        (fl to fl+lncount).map{ i =>
+        (fl to (fl+lncount)).map{ i =>
             if(aln) ("<a href='#%s-%d'>%" + mw + "d</a>") format (la, i, i)
             else ("%" + mw + "d") format (i)}.mkString("\n")
 
@@ -488,42 +495,30 @@ class HtmlFormatter(
         Return CSS style definitions for the classes produced by the current
         highlighting style. ``arg`` can be a string or list of selectors to
         insert before the token type classes.
-    
-    def styleDefs(arg=None):
+    */
+    def styleDefs: String = {
+        val arg = if(cssclass) ("." + cssclass) else ""
+
+        def prefix(cls: String) = {
+            arg + " " + (if(cls) ("." + cls) else "")
+        }      
         
-        if arg is None:
-            arg = ('cssclass' in self.options and '.'+self.cssclass or '')
-        if isinstance(arg, basestring):
-            args = [arg]
-        else:
-            args = list(arg)
+        val styles = for {(cls, params) <- class2style} yield ((params._3, params._2, cls, params._1))         
+        var lines = (for{(level, ttype, cls, style) <- styles} 
+            yield ("%s { %s } /* %s */".format(prefix(cls), style, ttype))).toList
 
-        def prefix(cls):
-            if cls:
-                cls = '.' + cls
-            tmp = []
-            for arg in args:
-                tmp.append((arg and arg + ' ' or '') + cls)
-            return ', '.join(tmp)
+        if(arg && !nobackground && options.style.backgroundColor) {
+            val text_style = if(ttype2class.contains(Text)) (" " + class2style(ttype2class(Text))) else ""
 
-        styles = [(level, ttype, cls, style)
-                  for cls, (style, ttype, level) in self.class2style.iteritems()
-                  if cls and style]
-        styles.sort()
-        lines = ['%s { %s } /* %s */' % (prefix(cls), style, repr(ttype)[6:])
-                 for (level, ttype, cls, style) in styles]
-        if arg and not self.nobackground and \
-           self.style.background_color is not None:
-            text_style = ''
-            if Text in self.ttype2class:
-                text_style = ' ' + self.class2style[self.ttype2class[Text]][0]
-            lines.insert(0, '%s { background: %s;%s }' %
-                         (prefix(''), self.style.background_color, text_style))
-        if self.style.highlight_color is not None:
-            lines.insert(0, '%s.hll { background-color: %s }' %
-                         (prefix(''), self.style.highlight_color))
-        return '\n'.join(lines)
-*/
+            lines = (("%s { background: %s;%s }".format(prefix(""), options.style.backgroundColor, text_style))) :: lines
+        }
+        if(options.style.highlightColor) {
+            lines = (("%s.hll { background-color: %s }".format(prefix(""), options.style.highlightColor))) :: lines
+        }
+
+        lines.mkString("\n")
+    }
+
 }
 
    

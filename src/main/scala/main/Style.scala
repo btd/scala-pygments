@@ -22,9 +22,6 @@ trait Style {
     //: Style definitions for individual token types.
     var styles: collection.mutable.Map[Token, String]
 
-    for{(token, css) <- Tokens.STANDARD_TYPES; if(!styles.contains(token))} 
-    	styles(token) = ""
-
     private val ColorFormat1 = """#([0-9a-f]{6})""".r
     private val ColorFormat2 = """#([0-9a-f]{3})""".r
        
@@ -36,37 +33,49 @@ trait Style {
     	}
     }
     
-    var _styles = collection.mutable.Map[Token, TokenStyle]()
+    lazy val _styles = getStyles
 
-    for{ (ttype, str) <- styles} {
-    	var ndef = _styles.getOrElse(ttype.parent, new TokenStyle )
-    	val styledefs = styles.getOrElse(ttype, "").split(" ").toList
+    
 
-    	if(styledefs.contains("noinherit") && ttype != Token) {
-    		ndef = _styles(Token)
-    	}
-    	_styles(ttype) = ndef
+    def getStyles = {
+        val s = collection.mutable.Map[Token, TokenStyle]()
 
-    	for { styledef <- styledefs; if(styledef != "noinherit")} {
-    		if( styledef == "bold") ndef.bold = true
-    		else if( styledef == "nobold") ndef.bold = false
-    		else if( styledef == "italic") ndef.italic = true
-    		else if( styledef == "noitalic") ndef.italic = false
-    		else if( styledef == "underline") ndef.underline = true
-    		else if( styledef == "nounderline") ndef.underline = false
-    		else if( styledef.startsWith("bg:")) ndef.backgroundColor = colorformat(styledef.substring(3))
-    		else if( styledef.startsWith("border:")) ndef.borderColor = colorformat(styledef.substring(7))
-    		else if( styledef == "roman") ndef.roman = true
-    		else if( styledef == "sans") ndef.sans = true
-    		else if( styledef == "mono") ndef.mono = true
-    		else ndef.color = colorformat(styledef)
-    	}
+        for{(token, css) <- Tokens.STANDARD_TYPES; if(!styles.contains(token))} 
+        styles(token) = ""
 
+        for{ (ttype, str) <- styles} {
+            var ndef = s.getOrElse(ttype.parent, new TokenStyle )
+            val styledefs = styles.getOrElse(ttype, "").split(" ").toList
+
+            if(styledefs.contains("noinherit") && ttype != Token) {
+                ndef = s(Token)
+            }
+            s(ttype) = ndef
+
+            for { styledef <- styledefs; if(styledef != "noinherit")} {
+                if( styledef == "bold") ndef.bold = true
+                    else if( styledef == "nobold") ndef.bold = false
+                    else if( styledef == "italic") ndef.italic = true
+                    else if( styledef == "noitalic") ndef.italic = false
+                    else if( styledef == "underline") ndef.underline = true
+                    else if( styledef == "nounderline") ndef.underline = false
+                    else if( styledef.startsWith("bg:")) ndef.backgroundColor = colorformat(styledef.substring(3))
+                    else if( styledef.startsWith("border:")) ndef.borderColor = colorformat(styledef.substring(7))
+                    else if( styledef == "roman") ndef.roman = true
+                    else if( styledef == "sans") ndef.sans = true
+                    else if( styledef == "mono") ndef.mono = true
+                    else ndef.color = colorformat(styledef)
+            }
+
+        }
+        s
     }
                 
                
 
     def styleForToken(token: Token) = _styles(token)
+
+    
 }
 
     
