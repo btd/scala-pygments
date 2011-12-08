@@ -370,14 +370,14 @@ class HtmlFormatter(
                     "<span class='" + cssClass(ttype) + "'>"
                 }
             println(cspan)   
-            val parts = escape(value).linesWithSeparators.toList
+            val parts = escape(value).split("\n", -1).toList
             println("This token is splited on " + parts.size + " parts" )
             val reversed = parts.reverse
             // for all but the last line
             for {part <- reversed.tail.reverse} {
                 if(!line.isEmpty) {
                     println("Line is empty")
-                    line = new StringBuilder(if( lspan != cspan)
+                    line ++= new StringBuilder(if( lspan != cspan)
                         (lspan and "</span>") + cspan + part + (cspan and "</span>") + lsep
                     else // both are the same
                         part + (lspan and "</span>") + lsep)
