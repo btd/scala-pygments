@@ -250,11 +250,10 @@ object CleverStringHelper {
     */
 class HtmlFormatter(
     val options: FormatterOptions = new FormatterOptions,
-    val noclasses: Boolean = false,
     val lineseparator: String = "\n",
     val nowrap: Boolean = false,
     val lineos: Boolean = false, //false = table
-    val lineanchors: String = "LN",
+    val lineanchors: String = "L",
     val prestyles: String = "",
     val nobackground: Boolean = false,
     val classPrefix: String = "",
@@ -343,7 +342,6 @@ class HtmlFormatter(
         Yield individual lines.
     */
     private def formatLines(tokensource: List[(Token, String)]) = {
-        val nocls = noclasses
         val lsep = lineseparator
 
         val c2s = class2style
@@ -352,32 +350,21 @@ class HtmlFormatter(
         var line = new StringBuilder
 
         var result = new collection.mutable.ListBuffer[(Int, String)]()
+
+        var lastPart = ""
+
         for{ (ttype, value) <- tokensource } {
             //println("Begin process " + ttype + " " + value)
-            val cspan = 
-                if(nocls) {
-                    val cclass = 
-                        ttype2class.get(ttype) match {
-                            case None => {
-                                var t = ttype.parent
-                                while(!ttype2class.contains(t)) t = t.parent
-                                ttype2class(t)
-                            }
-                            case Some(c) => c
-                        }
-                    "<span style='" + c2s.getOrElse(cclass, "") + "'>"
-                } else {
-                    "<span class='" + cssClass(ttype) + "'>"
-                }
+            val cspan = "<span class='" + cssClass(ttype) + "'>"
             //println(cspan)   
             val parts = escape(value).split("\n", -1).toList
-            //println("This token is splited on " + parts.size + " parts" )
+            println("This token is splited on " + parts.size + " parts" )
             val reversed = parts.reverse
             // for all but the last line
             for {part <- reversed.tail.reverse} {
                 if(!line.isEmpty) {
                     //println("Line is empty")
-                    line ++= new StringBuilder(if( lspan != cspan)
+                    line ++= (if( lspan != cspan)
                         (lspan and "</span>") + cspan + part + (cspan and "</span>") + lsep
                     else // both are the same
                         part + (lspan and "</span>") + lsep)
@@ -398,12 +385,14 @@ class HtmlFormatter(
                 line = new StringBuilder(cspan + reversed.head)
                 lspan = cspan
             } 
-            //println("Line: " + line)
+            lastPart = reversed.head
         }    
         //println("size is " + result.size)    
 
         if (line)                                                    
             result.append(( 1, line + (lspan and "</span>") + lsep))
+        
+        if (!lastPart) result.append(( 1, lsep))
 
         result.toList
     }
@@ -414,7 +403,7 @@ class HtmlFormatter(
         for{ (t, line) <- inner} {
             if(t == 1) {
                 i += 1
-                result += ((1, "<a name='%s-%d'></a>".format(lineanchors, i) + line))
+                result += ((1, "<span class='line'>%s</span>".format(line)))
             } else result += ((0, line))
         }
         result.toList
@@ -422,8 +411,7 @@ class HtmlFormatter(
         
     private def wrapDiv(inner: List[(Int, String)]) = {     
         var style = new collection.mutable.ListBuffer[String]
-        if (noclasses && !nobackground && !options.style.backgroundColor.isEmpty)  
-            style += "background: %s" format (options.style.backgroundColor)
+
         if (cssstyles) style += cssstyles
 
         val styleStr = style.mkString("; ")
@@ -436,7 +424,7 @@ class HtmlFormatter(
     private def wrapPre(inner: List[(Int, String)]) = {     
         var style = new collection.mutable.ListBuffer[String]
         if(prestyles) style += prestyles
-        if(noclasses) style += "line-height: 125%"
+
         val styleStr = style.mkString("; ")
 
         ((0, ("<pre " + (styleStr and (" style='%s'" format styleStr)) + ">"))) +: inner :+
@@ -461,30 +449,19 @@ class HtmlFormatter(
         val mw = (lncount + fl - 1).toString.length
         val la = lineanchors
         val aln = anchorlinenos
-        val nocls = noclasses
+
 
         val lines = new collection.mutable.ListBuffer[String]
 
         val ls =
         (fl to (fl+lncount-1)).map{ i =>
-            if(aln) ("<a href='#%s-%d'>%" + mw + "d</a>") format (la, i, i)
+            if(aln) ("<a href='#%s%d'>%" + mw + "d</span>") format (la, i, i)
             else ("%" + mw + "d") format (i)}.mkString("\n")
 
         var result = new collection.mutable.ListBuffer[(Int, String)]
-        // in case you wonder about the seemingly redundant <div> here: since the
-        // content in the other cell also is wrapped in a div, some browsers in
-        // some configurations seem to mess up the formatting...
-        if(nocls) {
-            result += ((0, ("<table class='%stable'>".format(cssclass) +
-                      "<tr><td><div class='linenodiv' " +
-                      "style='background-color: #f0f0f0; padding-right: 10px'>" +
-                      "<pre style='line-height: 125%'>" +
-                      ls + "</pre></div></td><td class='code'>")))
-        } else {
             result += ((0, ("<table class='%stable'>".format(cssclass) +
                       "<tr><td class='linenos'><div class='linenodiv'><pre>" +
                       ls + "</pre></div></td><td class='code'>")))
-        }
         result +=  ((0, value))
         result +=  ((0, "</td></tr></table>"))
 
