@@ -23,7 +23,7 @@ class TextLexer(val options: LexerOptions) extends Lexer {
     override def getTokensUnprocessed(text: String) = List((0, Text, text))
 }
 """
-	/*var out_file = new java.io.FileOutputStream("test.html")
+	var out_file = new java.io.FileOutputStream("test.html")
 	var out_stream = new java.io.PrintStream(out_file)
 
 	//Pygments.lex(code, new lexer.ScalaLexer(new LexerOptions ) )
@@ -33,12 +33,12 @@ class TextLexer(val options: LexerOptions) extends Lexer {
 		
 
 	out_stream.close
-*/
-	var out_file1 = new java.io.FileOutputStream("test.css")
+
+	/*var out_file1 = new java.io.FileOutputStream("test.css")
 
 	var out_stream1 = new java.io.PrintStream(out_file1)
 
 	out_stream1.print((new formatters.HtmlFormatter(new FormatterOptions(new styles.MurphyStyle )) ).styleDefs)
 
-	out_stream1.close
+	out_stream1.close*/
 }

@@ -259,7 +259,7 @@ class HtmlFormatter(
     val nobackground: Boolean = false,
     val classPrefix: String = "",
     val cssstyles: String = "",
-    val cssclass: String = "hightlight",
+    val cssclass: String = "highlight",
     val anchorlinenos: Boolean = true
 ) extends Formatter {
     import CleverStringHelper._ 
