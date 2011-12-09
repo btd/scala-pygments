@@ -104,9 +104,13 @@ trait DefinitionHelpers {
 
 abstract sealed class Action
 
-case class GoTo(str: String) extends Action
+trait SimpleAction
 
-case class Pop(steps: Int) extends Action with Popper
+case class GoTo(str: String) extends Action with SimpleAction
+
+case class Pop(steps: Int) extends Action with Popper with SimpleAction
+
+case class T(t: SimpleAction*) extends Action
 
 trait ActionHelpers {
     implicit def StringToAction(state: String):Action = GoTo(state)
@@ -116,11 +120,11 @@ trait Popper {
     def steps: Int
 }
 
-object Pop extends Action with Popper {
+object Pop extends Action with Popper with SimpleAction {
     val steps = 1
 }
 
-object Push extends Action {
+object Push extends Action with SimpleAction {
 
 }
 
@@ -227,6 +231,11 @@ trait RegexLexer extends Lexer {
         var result = new scala.collection.mutable.ListBuffer[(Int, Token, String)]()
         var shouldStop = false
 
+        def usingProcessing(lx: Lexer, m: MatchResult) = {
+            val s = m.start
+            lx.getTokensUnprocessed(m.group).map(t => (t._1 + s, t._2, t._3))                   
+        }
+
         val len = text.length
         while(!shouldStop) {
             var added = false
@@ -245,16 +254,14 @@ trait RegexLexer extends Lexer {
                                     if(!data.isEmpty) result += ((m.start(i + 1), token, data))
                                 }
                                 case Using(lexer) => {
-                                    def action(lx: Lexer, m: MatchResult) = {
-                                        val s = m.start
-                                        lx.getTokensUnprocessed(m.group).map(t => (t._1 + s, t._2, t._3))                   
-                                    }
-                                    action(lexer, _PseudoMatch(m.start(i + 1), m.group(i + 1)))
+                                    result ++= usingProcessing(lexer, _PseudoMatch(m.start(i + 1), m.group(i + 1)))
                                 }
                             }
                         }
                     }
-                    case _ =>
+                    case Using(lexer) => {
+                        result ++= usingProcessing(lexer, m)
+                    }
                 }
                 
    
@@ -265,8 +272,20 @@ trait RegexLexer extends Lexer {
                     case Pop => statestack.tail
                     case Push => statestack.head :: statestack
                     case DoNothing => statestack
+                    case T(ll @ _*) => {
+                        var s = statestack
+                        for (sa <- ll){ 
+                            s = (sa match {
+                                case GoTo(state) => state :: s
+                                case Pop(steps) => s.drop(steps)
+                                case Pop => s.tail
+                                case Push => s.head :: s
+                            })
+                        }
+                        s
+                    }
                 }
-                println("Stack " + statestack)
+                //println("Stack " + statestack)
                 statetokens = tokendefs(statestack.head)
                 added = true
             })
@@ -292,14 +311,45 @@ trait RegexLexer extends Lexer {
     }
 }
 
+/*
+    This lexer takes two lexer as arguments. A root lexer and
+    a language lexer. First everything is scanned using the language
+    lexer, afterwards all ``Other`` tokens are lexed using the root
+    lexer.
+
+    The lexers from the ``template`` lexer package use this base lexer.
+*/
+trait DelegatingLexer extends Lexer {
+
+    def _root_lexer(): Lexer
+
+    def _language_lexer(): Lexer
+
+
+    lazy val rootLexer = _root_lexer()
+    lazy val languageLexer = _language_lexer()
+
+    override def getTokensUnprocessed(text: String) = {
+
+
+        languageLexer.getTokensUnprocessed(text).flatMap{
+            case (i, Other, v) => rootLexer.getTokensUnprocessed(v)
+            case t => t :: Nil
+        }
+    }
+}
+        
+
 class RichTuple1(t: (String, Token)) {
     def >> (str: String) = WithAction((t._1, IsToken(t._2), GoTo(str)))
     def >> (a: Action) = WithAction((t._1, IsToken(t._2), a))
+    def >> (a1: SimpleAction, a2: SimpleAction) = WithAction((t._1, IsToken(t._2), T(a1, a2)))
 }
 
 class RichTuple2(t: (String, ByGroups)) {
     def >> (str: String) = WithAction((t._1, t._2, GoTo(str)))
     def >> (a: Action) = WithAction((t._1, t._2, a))
+    def >> (a1: SimpleAction, a2: SimpleAction) = WithAction((t._1, t._2, T(a1, a2)))
 }
 
 object Helpers extends StateDefHelpers with DefinitionHelpers with ActionHelpers with DescHelpers {
@@ -307,5 +357,6 @@ object Helpers extends StateDefHelpers with DefinitionHelpers with ActionHelpers
     implicit def  Tuple2RichTuple(t: (String, Token)) = new RichTuple1(t)
     implicit def  Tuple2RichTuple(t: (String, ByGroups)) = new RichTuple2(t)
 
+    implicit def StringToSimpleAction(s: String): SimpleAction = GoTo(s)
     val _default_analyse = (x: String) => 0.0
 }

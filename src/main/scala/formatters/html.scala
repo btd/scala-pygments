@@ -254,7 +254,7 @@ class HtmlFormatter(
     val lineseparator: String = "\n",
     val nowrap: Boolean = false,
     val lineos: Boolean = false, //false = table
-    val lineanchors: String = "",
+    val lineanchors: String = "LN",
     val prestyles: String = "",
     val nobackground: Boolean = false,
     val classPrefix: String = "",
@@ -322,16 +322,16 @@ class HtmlFormatter(
         linewise, e.g. line number generators.
         */
         var source = formatLines(tokensource)
-        println(source.size)
+        //println(source.size)
         if(!nowrap) {    
             if(lineanchors)
                 source = wrapLineanchors(source)
-            println(source.size)
+            //println(source.size)
             source = wrap(source)
-            println(source.size)
+            //println(source.size)
             if(!lineos)
                 source = wrapTablelinenos(source)
-            println(source.size)
+            //println(source.size)
         }
         for{ (t, piece) <- source } yield piece
     }
@@ -353,7 +353,7 @@ class HtmlFormatter(
 
         var result = new collection.mutable.ListBuffer[(Int, String)]()
         for{ (ttype, value) <- tokensource } {
-            println("Begin process " + ttype + " " + value)
+            //println("Begin process " + ttype + " " + value)
             val cspan = 
                 if(nocls) {
                     val cclass = 
@@ -369,14 +369,14 @@ class HtmlFormatter(
                 } else {
                     "<span class='" + cssClass(ttype) + "'>"
                 }
-            println(cspan)   
+            //println(cspan)   
             val parts = escape(value).split("\n", -1).toList
-            println("This token is splited on " + parts.size + " parts" )
+            //println("This token is splited on " + parts.size + " parts" )
             val reversed = parts.reverse
             // for all but the last line
             for {part <- reversed.tail.reverse} {
                 if(!line.isEmpty) {
-                    println("Line is empty")
+                    //println("Line is empty")
                     line ++= new StringBuilder(if( lspan != cspan)
                         (lspan and "</span>") + cspan + part + (cspan and "</span>") + lsep
                     else // both are the same
@@ -398,9 +398,9 @@ class HtmlFormatter(
                 line = new StringBuilder(cspan + reversed.head)
                 lspan = cspan
             } 
-            println("Line: " + line)
+            //println("Line: " + line)
         }    
-        println("size is " + result.size)    
+        //println("size is " + result.size)    
 
         if (line)                                                    
             result.append(( 1, line + (lspan and "</span>") + lsep))
@@ -455,7 +455,7 @@ class HtmlFormatter(
             lncount += l
             value ++= v
         }
-        println(inner)
+        //println(inner)
 
         val fl = 0
         val mw = (lncount + fl - 1).toString.length
@@ -466,7 +466,7 @@ class HtmlFormatter(
         val lines = new collection.mutable.ListBuffer[String]
 
         val ls =
-        (fl to (fl+lncount)).map{ i =>
+        (fl to (fl+lncount-1)).map{ i =>
             if(aln) ("<a href='#%s-%d'>%" + mw + "d</a>") format (la, i, i)
             else ("%" + mw + "d") format (i)}.mkString("\n")
 

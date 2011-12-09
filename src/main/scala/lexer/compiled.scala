@@ -23,8 +23,8 @@ class CLexer(val options: LexerOptions, stdlibhighlighting: Boolean = true, c99h
             ("""^#if\s+0""",  Comment.Preproc) >> "if0",
             ("""^#""",  Comment.Preproc) >> "macro",
             // or with whitespace
-            ("""^' + _ws + r'#if\s+0""",  Comment.Preproc) >> "if0",
-            ("""^' + _ws + '#""",  Comment.Preproc) >> "macro",
+            ("""^""" + _ws + """#if\s+0""",  Comment.Preproc) >> "if0",
+            ("""^""" + _ws + """#""",  Comment.Preproc) >> "macro",
             ("""^(\s*)([a-zA-Z_][a-zA-Z0-9_]*:(?!:))""",  ByGroups(Text, Name.Label)),
             ("""\n""",  Text),
             ("""\s+""",  Text),
@@ -61,14 +61,14 @@ class CLexer(val options: LexerOptions, stdlibhighlighting: Boolean = true, c99h
             ("""((?:[a-zA-Z0-9_*\s])+?(?:\s|[*]))""" +   // return arguments
              """([a-zA-Z_][a-zA-Z0-9_]*)""" +             // method name
              """(\s*\([^;]*?\))""" +                      // signature
-             """(' + _ws + r')(\{)""",
+             """(""" + _ws + """)(\{)""",
              ByGroups(Using(this), Name.Function, Using(this), Using(this), Punctuation)) >>
              "function",
             // function declarations
             ("""((?:[a-zA-Z0-9_*\s])+?(?:\s|[*]))""" +   // return arguments
              """([a-zA-Z_][a-zA-Z0-9_]*)""" +   // method name
              """(\s*\([^;]*?\))""" +   // signature
-             """(' + _ws + r')(;)""",
+             """(""" + _ws + """)(;)""",
              ByGroups(Using(this), Name.Function, Using(this), Using(this), Punctuation)),
             ("""""", Text) >> "statement"
         )),
@@ -177,8 +177,6 @@ class ScalaLexer(val options: LexerOptions) extends RegexLexer {
             ("\"\"\".*?\"\"\"", Str),
             (""""(\\\\|\\"|[^"])*"""", Str),
             ("'.'", Str.Char),
-//            (ur'(\.)(%s|%s|`[^`]+`)' % (idrest, op), ByGroups(Operator,
-//             Name.Attribute)),
             (idrest, Name),
             ("""[^`]+`""", Name),
             ("""\[""", Operator) >> "typeparam",
@@ -225,6 +223,128 @@ class ScalaLexer(val options: LexerOptions) extends RegexLexer {
         )),
         ("import", List[Definition](
             ("""(%s|\.)+""" format idrest, Name.Namespace) >> Pop
+        ))
+    )
+}
+
+/*
+    For Ada source code.
+
+    *New in Pygments 1.3.*
+*/
+class AdaLexer(val options: LexerOptions) extends RegexLexer {
+    
+    override val name = "Ada"
+    override val aliases = "ada" :: "ada95" :: "ada2005" :: Nil
+    override val filenames = "*.adb" :: "*.ads" :: "*.ada" :: Nil
+    override val mimetypes = "text/x-ada" :: Nil
+
+    override val flags = Pattern.MULTILINE | Pattern.CASE_INSENSITIVE
+
+    val _ws = """(?:\s|//.*?\n|/[*].*?[*]/)+"""
+
+    val tokens = Map[String, StateDef](
+        ("root", List[Definition](
+            ("""[^\S\n]+""", Text),
+            ("""--.*?\n""", Comment.Single),
+            ("""[^\S\n]+""", Text),
+            ("""function|procedure|entry""", Keyword.Declaration) >> "subprogram",
+            ("""(subtype|type)(\s+)([a-z0-9_]+)""",
+             ByGroups(Keyword.Declaration, Text, Keyword.Type)) >> "type_def",
+            ("""task|protected""", Keyword.Declaration),
+            ("""(subtype)(\s+)""", ByGroups(Keyword.Declaration, Text)),
+            ("""(end)(\s+)""", ByGroups(Keyword.Reserved, Text)) >> "end",
+            ("""(pragma)(\s+)([a-zA-Z0-9_]+)""", ByGroups(Keyword.Reserved, Text,
+                                                       Comment.Preproc)),
+            ("""(true|false|null)\b""", Keyword.Constant),
+            ("""(Byte|Character|Float|Integer|Long_Float|Long_Integer|""" +
+             """Long_Long_Float|Long_Long_Integer|Natural|Positive|Short_Float|""" +
+             """Short_Integer|Short_Short_Float|Short_Short_Integer|String|""" +
+             """Wide_String|Duration)\b""", Keyword.Type),
+            ("""(and(\s+then)?|in|mod|not|or(\s+else)|rem)\b""", Operator.Word),
+            ("""generic|private""", Keyword.Declaration),
+            ("""package""", Keyword.Declaration) >> "package",
+            ("""array\b""", Keyword.Reserved) >> "array_def",
+            ("""(with|use)(\s+)""", ByGroups(Keyword.Namespace, Text)) >> "import",
+            ("""([a-z0-9_]+)(\s*)(:)(\s*)(constant)""",
+             ByGroups(Name.Constant, Text, Punctuation, Text, Keyword.Reserved)),
+            ("""<<[a-z0-9_]+>>""", Name.Label),
+            ("""([a-z0-9_]+)(\s*)(:)(\s*)(declare|begin|loop|for|while)""",
+             ByGroups(Name.Label, Text, Punctuation, Text, Keyword.Reserved)),
+            ("""\b(abort|abs|abstract|accept|access|aliased|all|array|at|begin|""" +
+             """body|case|constant|declare|delay|delta|digits|do|else|elsif|end|""" +
+             """entry|exception|exit|interface|for|goto|if|is|limited|loop|new|""" +
+             """null|of|or|others|out|overriding|pragma|protected|raise|range|""" +
+             """record|renames|requeue|return|reverse|select|separate|subtype|""" +
+             """synchronized|task|tagged|terminate|then|type|until|when|while|""" +
+             """xor)\b""",
+             Keyword.Reserved),
+            (""""[^"]*"""", Str),
+            Include("attribute"),
+            Include("numbers"),
+            ("""'[^']'""", Str.Char),
+            ("""([a-z0-9_]+)(\s*|[(,])""", ByGroups(Name, Using(this))),
+            ("""(<>|=>|:=|[\(\)\|:;,.'])""", Punctuation),
+            ("""[*<>+=/&-]""", Operator),
+            ("""\n+""", Text)
+        )),
+        ("numbers", List[Definition](
+            ("""[0-9_]+#[0-9a-f]+#""", Number.Hex),
+            ("""[0-9_]+\.[0-9_]*""", Number.Float),
+            ("""[0-9_]+""", Number.Integer)
+        )),
+        ("attribute", List[Definition](
+            ("""(')([a-zA-Z0-9_]+)""", ByGroups(Punctuation, Name.Attribute))
+        )),
+        ("subprogram", List[Definition](
+            ("""\(""", Punctuation) >> (Pop, "formal_part"),
+            (""";""", Punctuation) >> Pop,
+            ("""is\b""", Keyword.Reserved) >> Pop,
+            (""""[^"]+"|[a-z0-9_]+""", Name.Function),
+            Include("root")
+        )),
+        ("end", List[Definition](
+            ("""(if|case|record|loop|select)""", Keyword.Reserved),
+            (""""[^"]+"|[a-zA-Z0-9_]+""", Name.Function),
+            ("""[\n\s]+""", Text),
+            (""";""", Punctuation) >> Pop
+        )),
+        ("type_def", List[Definition](
+            (""";""", Punctuation) >> Pop,
+            ("""\(""", Punctuation) >> "formal_part",
+            ("""with|and|use""", Keyword.Reserved),
+            ("""array\b""", Keyword.Reserved) >> (Pop, "array_def"),
+            ("""record\b""", Keyword.Reserved) >> "formal_part",
+            Include("root")
+        )),
+        ("array_def", List[Definition](
+            (""";""", Punctuation) >> Pop,
+            ("""([a-z0-9_]+)(\s+)(range)""", ByGroups(Keyword.Type, Text, Keyword.Reserved)),
+            Include("root")
+        )),
+        ("import", List[Definition](
+            ("""[a-z0-9_.]+""", Name.Namespace) >> Pop
+        )),
+        ("formal_part", List[Definition](
+            ("""\)""", Punctuation) >> Pop,
+            ("""([a-z0-9_]+)(\s*)(,|:[^=])""", ByGroups(Name.Variable, Text, Punctuation)),
+            ("""(in|not|null|out|access)\b""", Keyword.Reserved),
+            Include("root")
+        )),
+        ("package", List[Definition](
+            ("""body""", Keyword.Declaration),
+            ("""is\s+new|renames""", Keyword.Reserved),
+            ("""is""", Keyword.Reserved) >> Pop,
+            (""";""", Punctuation) >> Pop,
+            ("""\(""", Punctuation) >> "package_instantiation",
+            ("""([a-zA-Z0-9_.]+)""", Name.Class),
+            Include("root")
+        )),
+        ("package_instantiation", List[Definition](
+            ("""("[^"]+"|[a-z0-9_]+)(\s+)(=>)""", ByGroups(Name.Variable, Text, Punctuation)),
+            ("""[a-z0-9._\'"]""", Text),
+            ("""\)""", Punctuation) >> Pop,
+            Include("root")
         ))
     )
 }
