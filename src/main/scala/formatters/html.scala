@@ -455,7 +455,7 @@ class HtmlFormatter(
 
         val ls =
         (fl to (fl+lncount-1)).map{ i =>
-            if(aln) ("<a href='#%s%d'>%" + mw + "d</span>") format (la, i, i)
+            if(aln) ("<a href='#%s%d'>%" + mw + "d</a>") format (la, i, i)
             else ("%" + mw + "d") format (i)}.mkString("\n")
 
         var result = new collection.mutable.ListBuffer[(Int, String)]
