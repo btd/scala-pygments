@@ -439,3 +439,92 @@ class BlitzMaxLexer(val options: LexerOptions) extends RegexLexer {
         ))
     )
 }
+
+/*
+For C++ source code with preprocessor directives.
+*/
+class CppLexer(val options: LexerOptions) extends RegexLexer {
+    
+    override val name = "C++"
+    override val aliases = "cpp" :: "c++" :: Nil
+    override val filenames = "*.cpp" :: "*.hpp" :: "*.c++" :: "*.h++" :: "*.cc" :: "*.hh" :: "*.cxx" :: "*.hxx" :: Nil
+    override val mimetypes = "text/x-c++hdr" :: "text/x-c++src" :: Nil
+
+    //: optional Comment or Whitespace
+    private val _ws = """(?:\s|//.*?\n|/[*].*?[*]/)+"""
+
+
+    val tokens = Map[String, StateDef](
+        ("root", List[Definition](
+            // preprocessor directives: without whitespace
+            ("""^#if\s+0""", Comment.Preproc) >> "if0",
+            ("""^#""", Comment.Preproc) >> "macro",
+            // or with whitespace
+            ("""^""" + _ws + """#if\s+0""", Comment.Preproc) >> "if0",
+            ("""^""" + _ws + """#""", Comment.Preproc) >> "macro",
+            ("""\n""", Text),
+            ("""\s+""", Text),
+            ("""\\\n""", Text), // line continuation
+            ("""/(\\\n)?/(\n|(.|\n)*?[^\\]\n)""", Comment.Single),
+            ("""/(\\\n)?[*](.|\n)*?[*](\\\n)?/""", Comment.Multiline),
+            ("""[{}]""", Punctuation),
+            ("""L?"""", Str) >> "string",
+            ("""L?'(\\.|\\[0-7]{1,3}|\\x[a-fA-F0-9]{1,2}|[^\\\'\n])'""", Str.Char),
+            ("""(\d+\.\d*|\.\d+|\d+)[eE][+-]?\d+[LlUu]*""", Number.Float),
+            ("""(\d+\.\d*|\.\d+|\d+[fF])[fF]?""", Number.Float),
+            ("""0x[0-9a-fA-F]+[LlUu]*""", Number.Hex),
+            ("""0[0-7]+[LlUu]*""", Number.Oct),
+            ("""\d+[LlUu]*""", Number.Integer),
+            ("""\*/""", Error),
+            ("""[~!%^&*+=|?:<>/-]""", Operator),
+            ("""[()\[\],.;]""", Punctuation),
+            ("""(asm|auto|break|case|catch|const|const_cast|continue|""" +
+             """default|delete|do|dynamic_cast|else|enum|explicit|export|""" +
+             """extern|for|friend|goto|if|mutable|namespace|new|operator|""" +
+             """private|protected|public|register|reinterpret_cast|return|""" +
+             """restrict|sizeof|static|static_cast|struct|switch|template|""" +
+             """this|throw|throws|try|typedef|typeid|typename|union|using|""" +
+             """volatile|virtual|while)\b""", Keyword),
+            ("""(class)(\s+)""", ByGroups(Keyword, Text)) >> "classname",
+            ("""(bool|int|long|float|short|double|char|unsigned|signed|""" +
+             """void|wchar_t)\b""", Keyword.Type),
+            ("""(_{0,2}inline|naked|thread)\b""", Keyword.Reserved),
+            ("""__(asm|int8|based|except|int16|stdcall|cdecl|fastcall|int32|""" +
+             """declspec|finally|int64|try|leave|wchar_t|w64|virtual_inheritance|""" +
+             """uuidof|unaligned|super|single_inheritance|raise|noop|""" +
+             """multiple_inheritance|m128i|m128d|m128|m64|interface|""" +
+             """identifier|forceinline|event|assume)\b""", Keyword.Reserved),
+            // Offload C++ extensions, http://offload.codeplay.com/
+            ("""(__offload|__blockingoffload|__outer)\b""", Keyword.Pseudo),
+            ("""(true|false)\b""", Keyword.Constant),
+            ("""NULL\b""", Name.Builtin),
+            ("""[a-zA-Z_][a-zA-Z0-9_]*:(?!:)""", Name.Label),
+            ("""[a-zA-Z_][a-zA-Z0-9_]*""", Name)
+        )),
+        ("classname", List[Definition](
+            ("""[a-zA-Z_][a-zA-Z0-9_]*""", Name.Class) >> Pop,
+            // template specification
+            ("""\s*(?=>)""", Text) >> Pop
+        )),
+        ("string", List[Definition](
+            (""""""", Str) >> Pop,
+            ("""\\([\\abfnrtv"']|x[a-fA-F0-9]{2,4}|[0-7]{1,3})""", Str.Escape),
+            ("""[^\\"\n]+""", Str), // all other characters
+            ("""\\\n""", Str), // line continuation
+            ("""\\""", Str) // stray backslash
+        )),
+        ("macro", List[Definition](
+            ("""[^/\n]+""", Comment.Preproc),
+            ("""/[*](.|\n)*?[*]/""", Comment.Multiline),
+            ("""//.*?\n""", Comment.Single) >> Pop,
+            ("""/""", Comment.Preproc),
+            ("""(?<=\\)\n""", Comment.Preproc),
+            ("""\n""", Comment.Preproc) >> Pop
+        )),
+        ("if0", List[Definition](
+            ("""^\s*#if.*?(?<!\\)\n""", Comment.Preproc) >> Push,
+            ("""^\s*#endif.*?(?<!\\)\n""", Comment.Preproc) >> Pop,
+            (""".*?\n""", Comment)
+        ))
+    )
+}

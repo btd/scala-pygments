@@ -212,4 +212,68 @@ class BooLexer(val options: LexerOptions) extends RegexLexer {
 }
 
 
+class CSharpLexer(val options: LexerOptions) extends RegexLexer {
+    override val name = "C#"
+
+    override val aliases = "csharp" :: "c#" :: Nil
+    override val filenames = "*.cs" :: Nil
+    override val mimetypes = "text/x-csharp" :: Nil
+
+    
+
+    override val flags = Pattern.MULTILINE | Pattern.DOTALL
+
+
+    val cs_ident = """@?[_a-zA-Z][a-zA-Z0-9_]*"""
+
+    val tokens = Map[String, StateDef](
+        ("root", List[Definition](
+                //method names
+                ("""^([ \t]*(?:""" + cs_ident + """(?:\[\])?\s+)+?)""" + //return type
+                 """(""" + cs_ident + """)"""   +                     //method name
+                 """(\s*)(\()""",                               //signature start
+                 ByGroups(Using(this), Name.Function, Text, Punctuation)),
+                ("""^\s*\[.*?\]""", Name.Attribute),
+                ("""[^\S\n]+""", Text),
+                ("""\\\n""", Text), //line continuation
+                ("""//.*?\n""", Comment.Single),
+                ("""/[*](.|\n)*?[*]/""", Comment.Multiline),
+                ("""\n""", Text),
+                ("""[~!%^&*()+=|\[\]:;,.<>/?-]""", Punctuation),
+                ("""[{}]""", Punctuation),
+                ("""@"(\\\\|\\"|[^"])*"""", Str),
+                (""""(\\\\|\\"|[^"\n])*["\n]""", Str),
+                ("""'\\.'|'[^\\]'""", Str.Char),
+                ("""[0-9](\.[0-9]*)?([eE][+-][0-9]+)?[flFLdD]?|0[xX][0-9a-fA-F]+[Ll]?""", Number),
+                ("""#[ \t]*(if|endif|else|elif|define|undef|""" +
+                 """line|error|warning|region|endregion|pragma)\b.*?\n""", Comment.Preproc),
+                ("""\b(extern)(\s+)(alias)\b""", ByGroups(Keyword, Text, Keyword)),
+                ("""(abstract|as|base|break|case|catch|""" +
+                 """checked|const|continue|default|delegate|""" +
+                 """do|else|enum|event|explicit|extern|false|finally|""" +
+                 """fixed|for|foreach|goto|if|implicit|in|interface|""" +
+                 """internal|is|lock|new|null|operator|""" +
+                 """out|override|params|private|protected|public|readonly|""" +
+                 """ref|return|sealed|sizeof|stackalloc|static|""" +
+                 """switch|this|throw|true|try|typeof|""" +
+                 """unchecked|unsafe|virtual|void|while|""" +
+                 """get|set|new|partial|yield|add|remove|value)\b""", Keyword),
+                ("""(global)(::)""", ByGroups(Keyword, Punctuation)),
+                ("""(bool|byte|char|decimal|double|float|int|long|object|sbyte|""" + 
+                 """short|string|uint|ulong|ushort)\b\??""", Keyword.Type),
+                ("""(class|struct)(\s+)""", ByGroups(Keyword, Text)) >> "class",
+                ("""(namespace|using)(\s+)""", ByGroups(Keyword, Text)) >> "namespace",
+                (cs_ident, Name)
+            )),
+            ("class", List[Definition](
+                (cs_ident, Name.Class) >> Pop
+            )),
+            ("namespace", List[Definition](
+                ("""(?=\()""", Text) >> Pop, //using (resource)
+                ("""(""" + cs_ident + """|\.)+""", Name.Namespace) >> Pop
+            ))
+        )
+}
+
+
         
