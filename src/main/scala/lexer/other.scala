@@ -436,3 +436,180 @@ class AppleScriptLexer(val options: LexerOptions) extends RegexLexer {
     )
 
 }
+
+/*
+For `autohotkey <http://www.autohotkey.com/>`_ source code.
+*/
+class AutohotkeyLexer(val options: LexerOptions) extends RegexLexer {
+
+    override val name = "autohotkey"
+
+    override val aliases = "ahk" :: Nil
+    override val filenames = "*.ahk" :: "*.ahkl" :: Nil
+    override val mimetypes = "text/x-autohotkey" :: Nil
+
+    val tokens = Map[String, StateDef](
+        ("root", List[Definition](
+            ("""^(\s*)(/\*)""", ByGroups(Text, Comment.Multiline)) >> "incomment",
+            ("""^(\s*)(\()""", ByGroups(Text, Generic)) >> "incontinuation",
+            ("""\s+;.*?$""", Comment.Single),
+            ("""^;.*?$""", Comment.Single),
+            ("""[]{}(),;[]""", Punctuation),
+            ("""(in|is|and|or|not)\b""", Operator.Word),
+            ("""\%[a-zA-Z_#@$][a-zA-Z0-9_#@$]*\%""", Name.Variable),
+            ("""!=|==|:=|\.=|<<|>>|[-~+/*%=<>&^|?:!.]""", Operator),
+            Include("""commands"""),
+            Include("""labels"""),
+            Include("""builtInFunctions"""),
+            Include("""builtInVariables"""),
+            (""""""", Str) >> Combined("stringescape", "dqs"),
+            Include("numbers"),
+            ("""[a-zA-Z_#@$][a-zA-Z0-9_#@$]*""", Name),
+            ("""\\|\'""", Text),
+            ("""\`([\,\%\`abfnrtv\-\+;])""", Str.Escape),
+            Include("garbage")
+        )),
+        ("incomment", List[Definition](
+            ("""^\s*\*/""", Comment.Multiline) >> Pop,
+            ("""[^*/]""", Comment.Multiline),
+            ("""[*/]""", Comment.Multiline)
+        )),
+        ("incontinuation", List[Definition](
+            ("""^\s*\)""", Generic) >> Pop,
+            ("""[^)]""", Generic),
+            ("""[)]""", Generic)
+        )),
+        ("commands", List[Definition](
+            ("""(?i)^(\s*)(global|local|static|""" + 
+             """#AllowSameLineComments|#ClipboardTimeout|#CommentFlag|""" + 
+             """#ErrorStdOut|#EscapeChar|#HotkeyInterval|#HotkeyModifierTimeout|""" + 
+             """#Hotstring|#IfWinActive|#IfWinExist|#IfWinNotActive|""" + 
+             """#IfWinNotExist|#IncludeAgain|#Include|#InstallKeybdHook|""" + 
+             """#InstallMouseHook|#KeyHistory|#LTrim|#MaxHotkeysPerInterval|""" + 
+             """#MaxMem|#MaxThreads|#MaxThreadsBuffer|#MaxThreadsPerHotkey|""" + 
+             """#NoEnv|#NoTrayIcon|#Persistent|#SingleInstance|#UseHook|""" + 
+             """#WinActivateForce|AutoTrim|BlockInput|Break|Click|ClipWait|""" + 
+             """Continue|Control|ControlClick|ControlFocus|ControlGetFocus|""" + 
+             """ControlGetPos|ControlGetText|ControlGet|ControlMove|ControlSend|""" + 
+             """ControlSendRaw|ControlSetText|CoordMode|Critical|""" + 
+             """DetectHiddenText|DetectHiddenWindows|Drive|DriveGet|""" + 
+             """DriveSpaceFree|Edit|Else|EnvAdd|EnvDiv|EnvGet|EnvMult|EnvSet|""" + 
+             """EnvSub|EnvUpdate|Exit|ExitApp|FileAppend|""" + 
+             """FileCopy|FileCopyDir|FileCreateDir|FileCreateShortcut|""" + 
+             """FileDelete|FileGetAttrib|FileGetShortcut|FileGetSize|""" + 
+             """FileGetTime|FileGetVersion|FileInstall|FileMove|FileMoveDir|""" + 
+             """FileRead|FileReadLine|FileRecycle|FileRecycleEmpty|""" + 
+             """FileRemoveDir|FileSelectFile|FileSelectFolder|FileSetAttrib|""" + 
+             """FileSetTime|FormatTime|GetKeyState|Gosub|Goto|GroupActivate|""" + 
+             """GroupAdd|GroupClose|GroupDeactivate|Gui|GuiControl|""" + 
+             """GuiControlGet|Hotkey|IfEqual|IfExist|IfGreaterOrEqual|IfGreater|""" + 
+             """IfInString|IfLess|IfLessOrEqual|IfMsgBox|IfNotEqual|IfNotExist|""" + 
+             """IfNotInString|IfWinActive|IfWinExist|IfWinNotActive|""" + 
+             """IfWinNotExist|If |ImageSearch|IniDelete|IniRead|IniWrite|""" + 
+             """InputBox|Input|KeyHistory|KeyWait|ListHotkeys|ListLines|""" + 
+             """ListVars|Loop|Menu|MouseClickDrag|MouseClick|MouseGetPos|""" + 
+             """MouseMove|MsgBox|OnExit|OutputDebug|Pause|PixelGetColor|""" + 
+             """PixelSearch|PostMessage|Process|Progress|Random|RegDelete|""" + 
+             """RegRead|RegWrite|Reload|Repeat|Return|RunAs|RunWait|Run|""" + 
+             """SendEvent|SendInput|SendMessage|SendMode|SendPlay|SendRaw|Send|""" + 
+             """SetBatchLines|SetCapslockState|SetControlDelay|""" + 
+             """SetDefaultMouseSpeed|SetEnv|SetFormat|SetKeyDelay|""" + 
+             """SetMouseDelay|SetNumlockState|SetScrollLockState|""" + 
+             """SetStoreCapslockMode|SetTimer|SetTitleMatchMode|""" + 
+             """SetWinDelay|SetWorkingDir|Shutdown|Sleep|Sort|SoundBeep|""" + 
+             """SoundGet|SoundGetWaveVolume|SoundPlay|SoundSet|""" + 
+             """SoundSetWaveVolume|SplashImage|SplashTextOff|SplashTextOn|""" + 
+             """SplitPath|StatusBarGetText|StatusBarWait|StringCaseSense|""" + 
+             """StringGetPos|StringLeft|StringLen|StringLower|StringMid|""" + 
+             """StringReplace|StringRight|StringSplit|StringTrimLeft|""" + 
+             """StringTrimRight|StringUpper|Suspend|SysGet|Thread|ToolTip|""" + 
+             """Transform|TrayTip|URLDownloadToFile|While|WinActivate|""" + 
+             """WinActivateBottom|WinClose|WinGetActiveStats|WinGetActiveTitle|""" + 
+             """WinGetClass|WinGetPos|WinGetText|WinGetTitle|WinGet|WinHide|""" + 
+             """WinKill|WinMaximize|WinMenuSelectItem|WinMinimizeAllUndo|""" + 
+             """WinMinimizeAll|WinMinimize|WinMove|WinRestore|WinSetTitle|""" + 
+             """WinSet|WinShow|WinWaitActive|WinWaitClose|WinWaitNotActive|""" + 
+             """WinWait)\b""", ByGroups(Text, Name.Builtin))
+        )),
+        ("builtInFunctions", List[Definition](
+            ("""(?i)(Abs|ACos|Asc|ASin|ATan|Ceil|Chr|Cos|DllCall|Exp|FileExist|""" + 
+             """Floor|GetKeyState|IL_Add|IL_Create|IL_Destroy|InStr|IsFunc|""" + 
+             """IsLabel|Ln|Log|LV_Add|LV_Delete|LV_DeleteCol|LV_GetCount|""" + 
+             """LV_GetNext|LV_GetText|LV_Insert|LV_InsertCol|LV_Modify|""" + 
+             """LV_ModifyCol|LV_SetImageList|Mod|NumGet|NumPut|OnMessage|""" + 
+             """RegExMatch|RegExReplace|RegisterCallback|Round|SB_SetIcon|""" + 
+             """SB_SetParts|SB_SetText|Sin|Sqrt|StrLen|SubStr|Tan|TV_Add|""" + 
+             """TV_Delete|TV_GetChild|TV_GetCount|TV_GetNext|TV_Get|""" + 
+             """TV_GetParent|TV_GetPrev|TV_GetSelection|TV_GetText|TV_Modify|""" + 
+             """VarSetCapacity|WinActive|WinExist|Object|ComObjActive|""" + 
+             """ComObjArray|ComObjEnwrap|ComObjUnwrap|ComObjParameter|""" + 
+             """ComObjType|ComObjConnect|ComObjCreate|ComObjGet|ComObjError|""" + 
+             """ComObjValue|Insert|MinIndex|MaxIndex|Remove|SetCapacity|""" + 
+             """GetCapacity|GetAddress|_NewEnum|FileOpen|Read|Write|ReadLine|""" + 
+             """WriteLine|ReadNumType|WriteNumType|RawRead|RawWrite|Seek|Tell|""" + 
+             """Close|Next|IsObject|StrPut|StrGet|Trim|LTrim|RTrim)\b""",
+             Name.Function)
+        )),
+        ("builtInVariables", List[Definition](
+            ("""(?i)(A_AhkPath|A_AhkVersion|A_AppData|A_AppDataCommon|""" + 
+             """A_AutoTrim|A_BatchLines|A_CaretX|A_CaretY|A_ComputerName|""" + 
+             """A_ControlDelay|A_Cursor|A_DDDD|A_DDD|A_DD|A_DefaultMouseSpeed|""" + 
+             """A_Desktop|A_DesktopCommon|A_DetectHiddenText|""" + 
+             """A_DetectHiddenWindows|A_EndChar|A_EventInfo|A_ExitReason|""" + 
+             """A_FormatFloat|A_FormatInteger|A_Gui|A_GuiEvent|A_GuiControl|""" + 
+             """A_GuiControlEvent|A_GuiHeight|A_GuiWidth|A_GuiX|A_GuiY|A_Hour|""" + 
+             """A_IconFile|A_IconHidden|A_IconNumber|A_IconTip|A_Index|""" + 
+             """A_IPAddress1|A_IPAddress2|A_IPAddress3|A_IPAddress4|A_ISAdmin|""" + 
+             """A_IsCompiled|A_IsCritical|A_IsPaused|A_IsSuspended|A_KeyDelay|""" + 
+             """A_Language|A_LastError|A_LineFile|A_LineNumber|A_LoopField|""" + 
+             """A_LoopFileAttrib|A_LoopFileDir|A_LoopFileExt|A_LoopFileFullPath|""" + 
+             """A_LoopFileLongPath|A_LoopFileName|A_LoopFileShortName|""" + 
+             """A_LoopFileShortPath|A_LoopFileSize|A_LoopFileSizeKB|""" + 
+             """A_LoopFileSizeMB|A_LoopFileTimeAccessed|A_LoopFileTimeCreated|""" + 
+             """A_LoopFileTimeModified|A_LoopReadLine|A_LoopRegKey|""" + 
+             """A_LoopRegName|A_LoopRegSubkey|A_LoopRegTimeModified|""" + 
+             """A_LoopRegType|A_MDAY|A_Min|A_MM|A_MMM|A_MMMM|A_Mon|A_MouseDelay|""" + 
+             """A_MSec|A_MyDocuments|A_Now|A_NowUTC|A_NumBatchLines|A_OSType|""" + 
+             """A_OSVersion|A_PriorHotkey|A_ProgramFiles|A_Programs|""" + 
+             """A_ProgramsCommon|A_ScreenHeight|A_ScreenWidth|A_ScriptDir|""" + 
+             """A_ScriptFullPath|A_ScriptName|A_Sec|A_Space|A_StartMenu|""" + 
+             """A_StartMenuCommon|A_Startup|A_StartupCommon|A_StringCaseSense|""" + 
+             """A_Tab|A_Temp|A_ThisFunc|A_ThisHotkey|A_ThisLabel|A_ThisMenu|""" + 
+             """A_ThisMenuItem|A_ThisMenuItemPos|A_TickCount|A_TimeIdle|""" + 
+             """A_TimeIdlePhysical|A_TimeSincePriorHotkey|A_TimeSinceThisHotkey|""" + 
+             """A_TitleMatchMode|A_TitleMatchModeSpeed|A_UserName|A_WDay|""" + 
+             """A_WinDelay|A_WinDir|A_WorkingDir|A_YDay|A_YEAR|A_YWeek|A_YYYY|""" + 
+             """Clipboard|ClipboardAll|ComSpec|ErrorLevel|ProgramFiles|True|""" + 
+             """False|A_IsUnicode|A_FileEncoding|A_OSVersion|A_PtrSize)\b""",
+             Name.Variable)
+        )),
+        ("labels", List[Definition](
+            // hotkeys and labels
+            // technically, hotkey names are limited to named keys and buttons
+            ("""(^\s*)([^:\s\(\"]+?:{1,2})""", ByGroups(Text, Name.Label)),
+            ("""(^\s*)(::[^:\s]+?::)""", ByGroups(Text, Name.Label))
+        )),
+        ("numbers", List[Definition](
+            ("""(\d+\.\d*|\d*\.\d+)([eE][+-]?[0-9]+)?""", Number.Float),
+            ("""\d+[eE][+-]?[0-9]+""", Number.Float),
+            ("""0\d+""", Number.Oct),
+            ("""0[xX][a-fA-F0-9]+""", Number.Hex),
+            ("""\d+L""", Number.Integer.Long),
+            ("""\d+""", Number.Integer)
+        )),
+        ("stringescape", List[Definition](
+            ("""\"\"|\`([\,\%\`abfnrtv])""", Str.Escape)
+        )),
+        ("strings", List[Definition](
+            ("""[^"\n]+""", Str)
+        )),
+        ("dqs", List[Definition](
+            (""""""", Str) >> Pop,
+            Include("strings")
+        )),
+        ("garbage", List[Definition](
+            ("""[^\S\n]""", Text)
+            // (""".""", Text),      // no cheating
+        ))
+    )
+}

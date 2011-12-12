@@ -112,6 +112,8 @@ case class Pop(steps: Int) extends Action with Popper with SimpleAction
 
 case class T(t: SimpleAction*) extends Action
 
+case class Combined(t: String*) extends Action
+
 trait ActionHelpers {
     implicit def StringToAction(state: String):Action = GoTo(state)
 }
@@ -211,7 +213,16 @@ trait RegexLexer extends Lexer {
                             unprocessed: Map[String, StateDef], 
                             processed: scala.collection.mutable.Map[String, List[((String) => Matcher, Desc, Action)]]) = {
         
-        newState                                  
+        newState match {
+            case Combined(states @ _*) => {
+                var tmp_state = "_tmp_%d" format _tmpname
+                _tmpname += 1
+
+                processed(tmp_state) = states.flatMap(s => processState(unprocessed, processed, s)).toList
+                GoTo(tmp_state)
+            }
+            case s => s
+        }                                  
     }
 
 
@@ -284,6 +295,7 @@ trait RegexLexer extends Lexer {
                         }
                         s
                     }
+                    case Combined(_) => Nil
                 }
                 //println("Stack " + statestack)
                 statetokens = tokendefs(statestack.head)

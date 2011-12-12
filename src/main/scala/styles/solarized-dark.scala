@@ -3,7 +3,7 @@ package styles
 
 import main._
 
-class SolarizedStyle extends Style {
+class SolarizedDarkStyle extends Style {
 
 	val BASE03 = "#002B36"
 	val BASE02 = "#073642"
