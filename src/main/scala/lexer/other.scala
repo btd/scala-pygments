@@ -613,3 +613,74 @@ class AutohotkeyLexer(val options: LexerOptions) extends RegexLexer {
         ))
     )
 }
+/*
+ Lexer for (ba|k|)sh shell scripts.
+*/
+class BashLexer(val options: LexerOptions) extends RegexLexer {
+    override val name = "Bash"
+    override val aliases = "bash" :: "sh" :: "ksh" :: Nil
+    override val filenames = "*.sh" :: "*.ksh" :: "*.bash" :: "*.ebuild" :: "*.eclass" :: Nil
+    override val mimetypes = "application/x-sh" :: "application/x-shellscript" :: Nil
+
+    val tokens = Map[String, StateDef](
+        ("root", List[Definition](
+            Include("basic"),
+            ("""\$\(\(""", Keyword) >> "math",
+            ("""\$\(""", Keyword) >> "paren",
+            ("""\${#?""", Keyword) >> "curly",
+            ("""`""", Str.Backtick) >> "backticks",
+            Include("data")
+        )),
+        ("basic", List[Definition](
+            ("""\b(if|fi|else|while|do|done|for|then|return|function|case|""" +
+             """select|continue|until|esac|elif)\s*\b""",
+             Keyword),
+            ("""\b(alias|bg|bind|break|builtin|caller|cd|command|compgen|""" +
+             """complete|declare|dirs|disown|echo|enable|eval|exec|exit|""" +
+             """export|false|fc|fg|getopts|hash|help|history|jobs|kill|let|""" +
+             """local|logout|popd|printf|pushd|pwd|read|readonly|set|shift|""" +
+             """shopt|source|suspend|test|time|times|trap|true|type|typeset|""" +
+             """ulimit|umask|unalias|unset|wait)\s*\b(?!\.)""",
+             Name.Builtin),
+            ("""#.*\n""", Comment),
+            ("""\\[\w\W]""", Str.Escape),
+            ("""(\b\w+)(\s*)(=)""", ByGroups(Name.Variable, Text, Operator)),
+            ("""[\[\]{}()=]""", Operator),
+            ("""<<-?\s*(\'?)\\?(\w+)[\w\W]+?\2""", Str),
+            ("""&&|\|\|""", Operator)
+        )),
+        ("data", List[Definition](
+            ("""(?s)\$?"(\\\\|\\[0-7]+|\\.|[^"\\])*"""", Str.Double),
+            ("""(?s)\$?'(\\\\|\\[0-7]+|\\.|[^'\\])*'""", Str.Single),
+            (""";""", Text),
+            ("""\s+""", Text),
+            ("""[^=\s\n\[\]{}()$"\'`\\<]+""", Text),
+            ("""\d+(?= |\Z)""", Number),
+            ("""\$#?(\w+|.)""", Name.Variable),
+            ("""<""", Text)
+        )),
+        ("curly", List[Definition](
+            ("""}""", Keyword) >> Pop,
+            (""":-""", Keyword),
+            ("""[a-zA-Z0-9_]+""", Name.Variable),
+            ("""[^}:"\'`$]+""", Punctuation),
+            (""":""", Punctuation),
+            Include("root")
+        )),
+        ("paren", List[Definition](
+            ("""\)""", Keyword) >> Pop,
+            Include("root")
+        )),
+        ("math", List[Definition](
+            ("""\)\)""", Keyword) >> Pop,
+            ("""[-+*/%^|&]|\*\*|\|\|""", Operator),
+            ("""\d+""", Number),
+            Include("root")
+        )),
+        ("backticks", List[Definition](
+            ("""`""", Str.Backtick) >> Pop,
+            Include("root")
+        ))
+    )
+
+}
