@@ -348,3 +348,94 @@ class AdaLexer(val options: LexerOptions) extends RegexLexer {
         ))
     )
 }
+
+/*
+    For `BlitzMax <http://blitzbasic.com>`_ source code.
+*/
+class BlitzMaxLexer(val options: LexerOptions) extends RegexLexer {
+    
+    override val name = "BlitzMax"
+    override val aliases = "blitzmax" :: "bmax" :: Nil
+    override val filenames = "*.bmx" :: Nil
+    override val mimetypes = "text/x-bmx" :: Nil
+
+    override val flags = Pattern.MULTILINE | Pattern.CASE_INSENSITIVE
+
+   
+    val bmax_vopwords = """\b(Shl|Shr|Sar|Mod)\b"""
+    val bmax_sktypes = """@{1,2}|[!#$%]"""
+    val bmax_lktypes = """\b(Int|Byte|Short|Float|Double|Long)\b"""
+    val bmax_name = """[a-z_][a-z0-9_]*"""
+    val bmax_var = """(%s)(?:(?:([ \t]*)(%s)|([ \t]*:[ \t]*\b(?:Shl|Shr|Sar|Mod)\b)|([ \t]*)([:])([ \t]*)(?:%s|(%s)))(?:([ \t]*)(Ptr))?)""" format (bmax_name, bmax_sktypes, bmax_lktypes, bmax_name)
+    val bmax_func = bmax_var + """?((?:[ \t]|\.\.\n)*)([(])"""
+
+    val tokens = Map[String, StateDef](
+        ("root", List[Definition](
+            // Text
+            ("""[ \t]+""", Text),
+            ("""\.\.\n""", Text), // Line continuation
+            // Comments
+            ("'.*?\n", Comment.Single),
+            ("""([ \t]*)\bRem\n(\n|.)*?\s*\bEnd([ \t]*)Rem""", Comment.Multiline),
+            // Data types
+            (""""""", Str.Double) >> "string",
+            // Numbers
+            ("""[0-9]+\.[0-9]*(?!\.)""", Number.Float),
+            ("""\.[0-9]*(?!\.)""", Number.Float),
+            ("""[0-9]+""", Number.Integer),
+            ("""\$[0-9a-f]+""", Number.Hex),
+            ("""\%[10]+""", Number), // Binary
+            // Other
+            ("""(?:(?:(:)?([ \t]*)(:?%s|([+\-*/&|~]))|Or|And|Not|[=<>^]))""" format (bmax_vopwords), Operator),
+            ("""[(),.:\[\]]""", Punctuation),
+            ("""(?:#[\w \t]*)""", Name.Label),
+            ("""(?:\?[\w \t]*)""", Comment.Preproc),
+            // Identifiers
+            ("""\b(New)\b([ \t]?)([(]?)(%s)""" format (bmax_name),
+             ByGroups(Keyword.Reserved, Text, Punctuation, Name.Class)),
+            ("""\b(Import|Framework|Module)([ \t]+)(%s\.%s)""" format
+             (bmax_name, bmax_name),
+             ByGroups(Keyword.Reserved, Text, Keyword.Namespace)),
+            (bmax_func, ByGroups(Name.Function, Text, Keyword.Type,
+                                 Operator, Text, Punctuation, Text,
+                                 Keyword.Type, Name.Class, Text,
+                                 Keyword.Type, Text, Punctuation)),
+            (bmax_var, ByGroups(Name.Variable, Text, Keyword.Type, Operator,
+                                Text, Punctuation, Text, Keyword.Type,
+                                Name.Class, Text, Keyword.Type)),
+            ("""\b(Type|Extends)([ \t]+)(%s)""" format (bmax_name),
+             ByGroups(Keyword.Reserved, Text, Name.Class)),
+            // Keywords
+            ("""\b(Ptr)\b""", Keyword.Type),
+            ("""\b(Pi|True|False|Null|Self|Super)\b""", Keyword.Constant),
+            ("""\b(Local|Global|Const|Field)\b""", Keyword.Declaration),
+            ("""\b(TNullMethodException|TNullFunctionException|""" +
+             """TNullObjectException|TArrayBoundsException|""" +
+             """TRuntimeException)\b""", Name.Exception),
+            ("""\b(Strict|SuperStrict|Module|ModuleInfo|""" +
+             """End|Return|Continue|Exit|Public|Private|""" +
+             """Var|VarPtr|Chr|Len|Asc|SizeOf|Sgn|Abs|Min|Max|""" +
+             """New|Release|Delete|""" +
+             """Incbin|IncbinPtr|IncbinLen|""" +
+             """Framework|Include|Import|Extern|EndExtern|""" +
+             """Function|EndFunction|""" +
+             """Type|EndType|Extends|""" +
+             """Method|EndMethod|""" +
+             """Abstract|Final|""" +
+             """If|Then|Else|ElseIf|EndIf|""" +
+             """For|To|Next|Step|EachIn|""" +
+             """While|Wend|EndWhile|""" +
+             """Repeat|Until|Forever|""" +
+             """Select|Case|Default|EndSelect|""" +
+             """Try|Catch|EndTry|Throw|Assert|""" +
+             """Goto|DefData|ReadData|RestoreData)\b""", Keyword.Reserved),
+            // Final resolve (for variable names and such)
+            ("""(%s)""" format (bmax_name), Name.Variable)
+        )),
+        ("string", List[Definition](
+            ("""""""", Str.Double),
+            (""""C?""", Str.Double) >> Pop,
+            ("""[^"]+""", Str.Double)
+        ))
+    )
+}

@@ -454,7 +454,7 @@ class AutohotkeyLexer(val options: LexerOptions) extends RegexLexer {
             ("""^(\s*)(\()""", ByGroups(Text, Generic)) >> "incontinuation",
             ("""\s+;.*?$""", Comment.Single),
             ("""^;.*?$""", Comment.Single),
-            ("""[]{}(),;[]""", Punctuation),
+            ("""[\[\]\{\}\(\),;\[\]]""", Punctuation),
             ("""(in|is|and|or|not)\b""", Operator.Word),
             ("""\%[a-zA-Z_#@$][a-zA-Z0-9_#@$]*\%""", Name.Variable),
             ("""!=|==|:=|\.=|<<|>>|[-~+/*%=<>&^|?:!.]""", Operator),
@@ -627,7 +627,7 @@ class BashLexer(val options: LexerOptions) extends RegexLexer {
             Include("basic"),
             ("""\$\(\(""", Keyword) >> "math",
             ("""\$\(""", Keyword) >> "paren",
-            ("""\${#?""", Keyword) >> "curly",
+            ("""\$\{#?""", Keyword) >> "curly",
             ("""`""", Str.Backtick) >> "backticks",
             Include("data")
         )),
@@ -684,3 +684,122 @@ class BashLexer(val options: LexerOptions) extends RegexLexer {
     )
 
 }
+
+/*
+Lexer for the DOS/Windows Batch file format.
+*/
+class BatchLexer(val options: LexerOptions) extends RegexLexer {
+    override val name = "Batchfile"
+    override val aliases = "bat" :: Nil
+    override val filenames = "*.bat" :: "*.cmd" :: Nil
+    override val mimetypes = "application/x-dos-batch" :: Nil
+
+    override val flags = Pattern.MULTILINE | Pattern.CASE_INSENSITIVE
+
+    val tokens = Map[String, StateDef](
+        ("root", List[Definition](
+            // Lines can start with @ to prevent echo
+            ("""^\s*@""", Punctuation),
+            ("""^(\s*)(rem\s.*)$""", ByGroups(Text, Comment)),
+            ("""".*?"""", Str.Double),
+            ("'.*?'", Str.Single),
+            // If made more specific, make sure you still allow expansions
+            // like %~$VAR:zlt
+            ("""%%?[~$:\w]+%?""", Name.Variable),
+            ("""::.*""", Comment), // Technically :: only works at BOL
+            ("""(set)(\s+)(\w+)""", ByGroups(Keyword, Text, Name.Variable)),
+            ("""(call)(\s+)(:\w+)""", ByGroups(Keyword, Text, Name.Label)),
+            ("""(goto)(\s+)(\w+)""", ByGroups(Keyword, Text, Name.Label)),
+            ("""\b(set|call|echo|on|off|endlocal|for|do|goto|if|pause|""" +
+             """setlocal|shift|errorlevel|exist|defined|cmdextversion|""" +
+             """errorlevel|else|cd|md|del|deltree|cls|choice)\b""", Keyword),
+            ("""\b(equ|neq|lss|leq|gtr|geq)\b""", Operator),
+            Include("basic"),
+            (""".""", Text)
+        )),
+        ("echo", List[Definition](
+            //Escapes only valid within echo args?
+            ("""\^\^|\^<|\^>|\^\|""", Str.Escape),
+            ("""\n""", Text) >> Pop,
+            Include("basic"),
+            ("""[^\'"^]+""", Text)
+        )),
+        ("basic", List[Definition](
+            ("""".*?"""", Str.Double),
+            ("'.*?'", Str.Single),
+            ("""`.*?`""", Str.Backtick),
+            ("""-?\d+""", Number),
+            (""",""", Punctuation),
+            ("""=""", Operator),
+            ("""/\S+""", Name),
+            (""":\w+""", Name.Label),
+            ("""\w:\w+""", Text),
+            ("""([<>|])(\s*)(\w+)""", ByGroups(Punctuation, Text, Name))
+        ))
+    )
+}
+
+/*
+
+Lexer for the esoteric `Befunge <http://en.wikipedia.org/wiki/Befunge>`_
+*/
+class BefungeLexer(val options: LexerOptions) extends RegexLexer {
+
+    override val name = "Befunge"
+    override val aliases = "befunge" :: Nil
+    override val filenames = "*.befunge" :: Nil
+    override val mimetypes = "application/x-befunge" :: Nil
+
+    override val flags = Pattern.MULTILINE | Pattern.CASE_INSENSITIVE
+
+    val tokens = Map[String, StateDef](
+        ("root", List[Definition](
+            ("""[0-9a-f]""", Number),
+            ("""[\+\*/%!`-]""", Operator), // Traditional math
+            ("""[<>^v?\[\]rxjk]""", Name.Variable), // Move, imperatives
+            ("""[:\\$.,n]""", Name.Builtin), // Stack ops, imperatives
+            ("""[|_mw]""", Keyword),
+            ("""[{}]""", Name.Tag), // Befunge-98 stack ops
+            ("""".*?"""", Str.Double), // Strings don't appear to allow escapes
+            ("""'.""", Str.Single), // Single character
+            ("""[#;]""", Comment), // Trampoline... depends on direction hit
+            ("""[pg&~=@iotsy]""", Keyword), // Misc
+            ("""[\(\)A-Z]""", Comment), // Fingerprints
+            ("""\s+""", Text) // Whitespace doesn't matter
+        ))
+    )
+}
+
+/*
+Lexer for the esoteric `BrainFuck <http://www.muppetlabs.com/~breadbox/bf/>`_
+    language.
+*/
+class BrainfuckLexer(val options: LexerOptions) extends RegexLexer {
+
+    override val name = "Brainfuck"
+    override val aliases = "brainfuck" :: "bf" :: Nil
+    override val filenames = "*.bf" :: "*.b" :: Nil
+    override val mimetypes = "application/x-brainfuck" :: Nil
+
+
+    val tokens = Map[String, StateDef](
+        ("common", List[Definition](
+            // use different colors for different instruction types
+            ("""[.,]+""", Name.Tag),
+            ("""[+-]+""", Name.Builtin),
+            ("""[<>]+""", Name.Variable),
+            ("""[^.,+\-<>\[\]]+""", Comment)
+        )),
+        ("root", List[Definition](
+            ("""\[""", Keyword) >> "loop",
+            ("""\]""", Error),
+            Include("common")
+        )),
+        ("loop", List[Definition](
+            ("""\[""", Keyword) >> Push,
+            ("""\]""", Keyword) >> Pop,
+            Include("common")
+        ))
+    )
+}
+    

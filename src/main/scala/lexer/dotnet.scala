@@ -144,5 +144,72 @@ class VbNetAspxLexer(val options: LexerOptions) extends DelegatingLexer {
 
 }
 
+/*
+For `Boo <http://boo.codehaus.org/>`_ source code.
+*/
+class BooLexer(val options: LexerOptions) extends RegexLexer {
+    override val name = "Boo"
+
+    override val aliases = "boo" :: Nil
+    override val filenames = "*.boo" :: Nil
+    override val mimetypes = "text/x-boo" :: Nil
+
+    val tokens = Map[String, StateDef](
+        ("root", List[Definition](
+            ("""\s+""", Text),
+            ("""(#|//).*$""", Comment.Single),
+            ("""/[*]""", Comment.Multiline) >> "comment",
+            ("""[\[\]\{\}\:\(\),\.;\[\]]""", Punctuation),
+            ("""\\\n""", Text),
+            ("""\\""", Text),
+            ("""(in|is|and|or|not)\b""", Operator.Word),
+            ("""/(\\\\|\\/|[^/\s])/""", Str.Regex),
+            ("""@/(\\\\|\\/|[^/])*/""", Str.Regex),
+            ("""=~|!=|==|<<|>>|[-+/*%=<>&^|]""", Operator),
+            ("""(as|abstract|callable|constructor|destructor|do|import|""" +
+             """enum|event|final|get|interface|internal|of|override|""" +
+             """partial|private|protected|public|return|set|static|""" +
+             """struct|transient|virtual|yield|super|and|break|cast|""" +
+             """continue|elif|else|ensure|except|for|given|goto|if|in|""" +
+             """is|isa|not|or|otherwise|pass|raise|ref|try|unless|when|""" +
+             """while|from|as)\b""", Keyword),
+            ("""def(?=\s+\(.*?\))""", Keyword),
+            ("""(def)(\s+)""", ByGroups(Keyword, Text)) >> "funcname",
+            ("""(class)(\s+)""", ByGroups(Keyword, Text)) >> "classname",
+            ("""(namespace)(\s+)""", ByGroups(Keyword, Text)) >> "namespace",
+            ("""(?<!\.)(true|false|null|self|__eval__|__switch__|array|""" +
+             """assert|checked|enumerate|filter|getter|len|lock|map|""" +
+             """matrix|max|min|normalArrayIndexing|print|property|range|""" +
+             """rawArrayIndexing|required|typeof|unchecked|using|""" +
+             """yieldAll|zip)\b""", Name.Builtin),
+            ("\"\"\"(\\\\|\\\"|.*?)\"\"\"", Str.Double),
+            ("\"\"\"(\\\\|\\\"|[^\"]*?)\"\"\"", Str.Double),
+            ("'(\\\\|\\'|[^']*?)'", Str.Single),
+            ("""[a-zA-Z_][a-zA-Z0-9_]*""", Name),
+            ("""(\d+\.\d*|\d*\.\d+)([fF][+-]?[0-9]+)?""", Number.Float),
+            ("""[0-9][0-9\.]*(m|ms|d|h|s)""", Number),
+            ("""0\d+""", Number.Oct),
+            ("""0x[a-fA-F0-9]+""", Number.Hex),
+            ("""\d+L""", Number.Integer.Long),
+            ("""\d+""", Number.Integer)
+        )),
+        ("comment", List[Definition](
+            ("""/[*]""", Comment.Multiline) >> Push,
+            ("""[*]/""", Comment.Multiline) >> Pop,
+            ("""[^/*]""", Comment.Multiline),
+            ("""[*/]""", Comment.Multiline)
+        )),
+        ("funcname", List[Definition](
+            ("""[a-zA-Z_][a-zA-Z0-9_]*""", Name.Function) >> Pop
+        )),
+        ("classname", List[Definition](
+            ("""[a-zA-Z_][a-zA-Z0-9_]*""", Name.Class) >> Pop
+        )),
+        ("namespace", List[Definition](
+            ("""[a-zA-Z_][a-zA-Z0-9_.]*""", Name.Namespace) >> Pop
+        ))
+    )
+}
+
 
         

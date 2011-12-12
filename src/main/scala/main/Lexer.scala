@@ -262,7 +262,7 @@ trait RegexLexer extends Lexer {
                             t match {
                                 case IsToken(token) => {
                                     val data = m.group(i + 1)
-                                    if(!data.isEmpty) result += ((m.start(i + 1), token, data))
+                                    if(data != null && !data.isEmpty) result += ((m.start(i + 1), token, data))
                                 }
                                 case Using(lexer) => {
                                     result ++= usingProcessing(lexer, _PseudoMatch(m.start(i + 1), m.group(i + 1)))
@@ -297,10 +297,11 @@ trait RegexLexer extends Lexer {
                     }
                     case Combined(_) => Nil
                 }
-                //println("Stack " + statestack)
+                println("Stack " + statestack)
                 statetokens = tokendefs(statestack.head)
                 added = true
             })
+            //println("Pos " + pos + " " + text(pos))
             if(!added) {
             try {
                 if(text(pos) == '\n') {
@@ -309,7 +310,7 @@ trait RegexLexer extends Lexer {
                     statestack = List("root")
                     statetokens = tokendefs("root")
                     result += ((pos, Text, "\n"))
-                } else if(statestack.isEmpty) {
+                } else if(statestack.isEmpty || text(pos) != '\n') {
                     result += ((pos, Error, text(pos).toString))
                     pos += 1
                 }
