@@ -297,7 +297,7 @@ trait RegexLexer extends Lexer {
                     }
                     case Combined(_) => Nil
                 }
-                println("Stack " + statestack)
+                //println("Stack " + statestack)
                 statetokens = tokendefs(statestack.head)
                 added = true
             })

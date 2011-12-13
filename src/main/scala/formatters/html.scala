@@ -358,7 +358,7 @@ class HtmlFormatter(
             val cspan = "<span class='" + cssClass(ttype) + "'>"
             //println(cspan)   
             val parts = escape(value).split("\n", -1).toList
-            println("This token is splited on " + parts.size + " parts" )
+            //println("This token is splited on " + parts.size + " parts" )
             val reversed = parts.reverse
             // for all but the last line
             for {part <- reversed.tail.reverse} {
