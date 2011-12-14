@@ -528,3 +528,164 @@ class CppLexer(val options: LexerOptions) extends RegexLexer {
         ))
     )
 }
+
+class CythonLexer(val options: LexerOptions) extends RegexLexer {
+    
+    override val name = "Cython"
+    override val aliases = "cython" :: "pyx" :: Nil
+    override val filenames = "*.pyx" :: "*.pxd" :: "*.pxi" :: Nil
+    override val mimetypes = "text/x-cython" :: "application/x-cython" :: Nil
+
+    val tokens = Map[String, StateDef](
+        ("root", List[Definition](
+            ("""\n""", Text),
+            ("^(\\s*)(\"\"\"(?:.|\n)*?\"\"\")", ByGroups(Text, Str.Doc)),
+            ("""^(\s*)('''(?:.|\n)*?''')""", ByGroups(Text, Str.Doc)),
+            ("""[^\S\n]+""", Text),
+            ("""#.*$""", Comment),
+            ("""[\]\{\}:\(\),;\[]""", Punctuation),
+            ("""\\\n""", Text),
+            ("""\\""", Text),
+            ("""(in|is|and|or|not)\b""", Operator.Word),
+            ("""(<)([a-zA-Z0-9.?]+)(>)""",
+             ByGroups(Punctuation, Keyword.Type, Punctuation)),
+            ("""!=|==|<<|>>|[-~+/*%=<>&^|.?]""", Operator),
+            ("""(from)(\d+)(<=)(\s+)(<)(\d+)(:)""",
+             ByGroups(Keyword, Number.Integer, Operator, Name, Operator,
+                      Name, Punctuation)),
+            Include("keywords"),
+            ("""(def|property)(\s+)""", ByGroups(Keyword, Text)) >> "funcname",
+            ("""(cp?def)(\s+)""", ByGroups(Keyword, Text)) >> "cdef",
+            ("""(class|struct)(\s+)""", ByGroups(Keyword, Text)) >> "classname",
+            ("""(from)(\s+)""", ByGroups(Keyword, Text)) >> "fromimport",
+            ("""(c?import)(\s+)""", ByGroups(Keyword, Text)) >> "import",
+            Include("builtins"),
+            Include("backtick"),
+            ("""(?:[rR]|[uU][rR]|[rR][uU])"""""", Str) >> "tdqs",
+            ("""(?:[rR]|[uU][rR]|[rR][uU])'''""", Str) >> "tsqs",
+            ("""(?:[rR]|[uU][rR]|[rR][uU])"""", Str) >> "dqs",
+            ("""(?:[rR]|[uU][rR]|[rR][uU])'""", Str) >> "sqs",
+            ("""[uU]?"""""", Str) >> Combined("stringescape", "tdqs"),
+            ("""[uU]?'''""", Str) >> Combined("stringescape", "tsqs"),
+            ("""[uU]?"""", Str) >> Combined("stringescape", "dqs"),
+            ("""[uU]?'""", Str) >> Combined("stringescape", "sqs"),
+            Include("name"),
+            Include("numbers")
+        )),
+        ("keywords", List[Definition](
+            ("""(assert|break|by|continue|ctypedef|del|elif|else|except\??|exec|""" +
+             """finally|for|gil|global|if|include|lambda|nogil|pass|print|raise|""" +
+             """return|try|while|yield|as|with)\b""", Keyword),
+            ("""(DEF|IF|ELIF|ELSE)\b""", Comment.Preproc)
+        )),
+        ("builtins", List[Definition](
+            ("""(?<!\.)(__import__|abs|all|any|apply|basestring|bin|bool|buffer|""" +
+             """bytearray|bytes|callable|chr|classmethod|cmp|coerce|compile|""" +
+             """complex|delattr|dict|dir|divmod|enumerate|eval|execfile|exit|""" +
+             """file|filter|float|frozenset|getattr|globals|hasattr|hash|hex|id|""" +
+             """input|int|intern|isinstance|issubclass|iter|len|list|locals|""" +
+             """long|map|max|min|next|object|oct|open|ord|pow|property|range|""" +
+             """raw_input|reduce|reload|repr|reversed|round|set|setattr|slice|""" +
+             """sorted|staticmethod|str|sum|super|tuple|type|unichr|unicode|""" +
+             """vars|xrange|zip)\b""", Name.Builtin),
+            ("""(?<!\.)(self|None|Ellipsis|NotImplemented|False|True|NULL""" +
+             """)\b""", Name.Builtin.Pseudo),
+            ("""(?<!\.)(ArithmeticError|AssertionError|AttributeError|""" +
+             """BaseException|DeprecationWarning|EOFError|EnvironmentError|""" +
+             """Exception|FloatingPointError|FutureWarning|GeneratorExit|IOError|""" +
+             """ImportError|ImportWarning|IndentationError|IndexError|KeyError|""" +
+             """KeyboardInterrupt|LookupError|MemoryError|NameError|""" +
+             """NotImplemented|NotImplementedError|OSError|OverflowError|""" +
+             """OverflowWarning|PendingDeprecationWarning|ReferenceError|""" +
+             """RuntimeError|RuntimeWarning|StandardError|StopIteration|""" +
+             """SyntaxError|SyntaxWarning|SystemError|SystemExit|TabError|""" +
+             """TypeError|UnboundLocalError|UnicodeDecodeError|""" +
+             """UnicodeEncodeError|UnicodeError|UnicodeTranslateError|""" +
+             """UnicodeWarning|UserWarning|ValueError|Warning|ZeroDivisionErro""" +
+             """)\b""", Name.Exception)
+        )),
+        ("numbers", List[Definition](
+            ("""(\d+\.?\d*|\d*\.\d+)([eE][+-]?[0-9]+)?""", Number.Float),
+            ("""0\d+""", Number.Oct),
+            ("""0[xX][a-fA-F0-9]+""", Number.Hex),
+            ("""\d+L""", Number.Integer.Long),
+            ("""\d+""", Number.Integer)
+        )),
+        ("backtick", List[Definition](
+            (""" +`.*?`""", Str.Backtick)
+        )),
+        ("name", List[Definition](
+            ("""@[a-zA-Z0-9_]+""", Name.Decorator),
+            ("""[a-zA-Z_][a-zA-Z0-9_]*""", Name)
+        )),
+        ("funcname", List[Definition](
+            ("""[a-zA-Z_][a-zA-Z0-9_]*""", Name.Function) >> Pop
+        )),
+        ("cdef", List[Definition](
+            ("""(public|readonly|extern|api|inline)\b""", Keyword.Reserved),
+            ("""(struct|enum|union|class)\b""", Keyword),
+            ("""([a-zA-Z_][a-zA-Z0-9_]*)(\s*)(?=[(:#=]|$)""",
+             ByGroups(Name.Function, Text)) >> Pop,
+            ("""([a-zA-Z_][a-zA-Z0-9_]*)(\s*)(,)""",
+             ByGroups(Name.Function, Text, Punctuation)),
+            ("""from\b""", Keyword) >> Pop,
+            ("""as\b""", Keyword),
+            (""":""", Punctuation) >> Pop,
+            ("""(?=["\'])""", Text) >> Pop,
+            ("""[a-zA-Z_][a-zA-Z0-9_]*""", Keyword.Type),
+            (""".""", Text)
+        )),
+        ("classname", List[Definition](
+            ("""[a-zA-Z_][a-zA-Z0-9_]*""", Name.Class) >> Pop
+        )),
+        ("import", List[Definition](
+            ("""(\s+)(as)(\s+)""", ByGroups(Text, Keyword, Text)),
+            ("""[a-zA-Z_][a-zA-Z0-9_.]*""", Name.Namespace),
+            ("""(\s*)(,)(\s*)""", ByGroups(Text, Operator, Text)),
+            ("""""", Text) >> Pop // all else: go back
+        )),
+        ("fromimport", List[Definition](
+            ("""(\s+)(c?import)\b""", ByGroups(Text, Keyword)) >> Pop,
+            ("""[a-zA-Z_.][a-zA-Z0-9_.]*""", Name.Namespace),
+            //``cdef foo from "heade"""``, or ``for foo from 0 < i < 10``
+            ("""""", Text) >> Pop
+        )),
+        ("stringescape", List[Definition](
+            ("""\\([\\abfnrtv"\']|\n|N{.*?}|u[a-fA-F0-9]{4}|""" +
+             """U[a-fA-F0-9]{8}|x[a-fA-F0-9]{2}|[0-7]{1,3})""", Str.Escape)
+        )),
+        ("strings", List[Definition](
+            ("""%(\([a-zA-Z0-9]+\))?[-#0 +]*([0-9]+|[*])?(\.([0-9]+|[*]))?""" +
+             """[hlL]?[diouxXeEfFgGcrs%]""", Str.Interpol),
+            ("[^\\\'\"%\n]+", Str),
+            //quotes, percents and backslashes must be parsed one at a time
+            ("""[\'"\\]""", Str),
+            // unhandled string formatting sign
+            ("""%""", Str)
+            // newlines are an error (use "nl" state)
+        )),
+        ("nl", List[Definition](
+            ("""\n""", Str)
+        )),
+        ("dqs", List[Definition](
+            (""""""", Str) >> Pop,
+            ("""\\\\|\\"|\\\n""", Str.Escape), // included here again for raw strings
+            Include("strings")
+        )),
+        ("sqs", List[Definition](
+            ("""'""", Str) >> Pop,
+            ("""\\\\|\\'|\\\n""", Str.Escape), // included here again for raw strings
+            Include("strings")
+        )),
+        ("tdqs", List[Definition](
+            (""""""""", Str) >> Pop,
+            Include("strings"),
+            Include("nl")
+        )),
+        ("tsqs", List[Definition](
+            ("""'''""", Str) >> Pop,
+            Include("strings"),
+            Include("nl")
+        ))
+    )
+}

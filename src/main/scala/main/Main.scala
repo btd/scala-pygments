@@ -27,7 +27,7 @@ def primes(int kmax):
 
 	//Pygments.lex(code, new lexer.ScalaLexer(new LexerOptions ) )
 	out_stream.println("""<link type="text/css" rel="stylesheet" href="test.css">""")
-	Pygments.highlight(code, new lexer.CythonLexer(new LexerOptions ), new formatters.HtmlFormatter )
+	Pygments.highlight(code, new lexer.TextLexer(new LexerOptions ), new formatters.HtmlFormatter )
 		.foreach(t => out_stream.println(t))
 		
 
